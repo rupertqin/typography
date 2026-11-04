@@ -63,6 +63,7 @@ g.matchMedia = win.matchMedia;
 const { createRoot } = await import('react-dom/client');
 const { THEMES } = await import('../src/lib/themes.generated.js');
 const { useTypesetStore } = await import('../src/lib/store');
+const { EditorHistory } = await import('../src/lib/history');
 const { createElement } = await import('react');
 const { default: TypesetApp } = await import('../src/components/TypesetApp');
 
@@ -154,12 +155,79 @@ try {
   ) as HTMLButtonElement | undefined;
   expect(Boolean(copyButton?.disabled), '空正文时复制按钮未禁用');
 
+  // 撤销 / 重做：编辑器里输入后按钮可用，Ctrl+Z 撤销、Ctrl+Shift+Z 重做
+  const undoButton = () =>
+    Array.from(mount.querySelectorAll('button')).find(
+      (btn) => btn.getAttribute('title') === '撤销（⌘/Ctrl + Z）',
+    ) as HTMLButtonElement | undefined;
+  const redoButton = () =>
+    Array.from(mount.querySelectorAll('button')).find(
+      (btn) => btn.getAttribute('title') === '重做（⌘/Ctrl + Shift + Z）',
+    ) as HTMLButtonElement | undefined;
+  expect(Boolean(undoButton() && redoButton()), '缺少撤销 / 重做按钮');
+  expect(Boolean(undoButton()?.disabled && redoButton()?.disabled), '无历史时撤销 / 重做按钮未禁用');
+
+  const textarea = mount.querySelector('textarea') as HTMLTextAreaElement | null;
+  expect(Boolean(textarea), '缺少编辑区');
+  const valueSetter = Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, 'value')?.set;
+  if (textarea) {
+    valueSetter?.call(textarea, '撤销测试');
+    textarea.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(140);
+    expect(useTypesetStore.getState().markdown === '撤销测试', '模拟输入未写入正文');
+    expect(!undoButton()?.disabled, '编辑后撤销按钮仍禁用');
+
+    win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    await wait(140);
+    expect(
+      useTypesetStore.getState().markdown === '',
+      `Ctrl+Z 未撤销，当前「${useTypesetStore.getState().markdown}」`,
+    );
+    expect(!redoButton()?.disabled, '撤销后重做按钮仍禁用');
+
+    win.document.dispatchEvent(
+      new win.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true }),
+    );
+    await wait(140);
+    expect(
+      useTypesetStore.getState().markdown === '撤销测试',
+      `Ctrl+Shift+Z 未重做，当前「${useTypesetStore.getState().markdown}」`,
+    );
+  }
+
+  // 整体字号：点「特大」后预览 HTML 跟着变，并写进 store
+  const htmlBeforeFont = html();
+  const bigFontButton = Array.from(mount.querySelectorAll('button')).find(
+    (btn) => btn.getAttribute('aria-label') === '整体字号特大',
+  );
+  expect(Boolean(bigFontButton), '缺少整体字号按钮');
+  bigFontButton?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await wait(160);
+  expect(useTypesetStore.getState().fontScale === 1.25, '整体字号未写入 store');
+  expect(html() !== htmlBeforeFont, '切换整体字号后预览没有变化');
+
+  // 撤销 / 重做历史：连续输入合并成一步，停顿后另起一步，新编辑清空重做分支
+  const history = new EditorHistory({ coalesceMs: 600 });
+  const snap = (value: string) => ({ value, selectionStart: value.length, selectionEnd: value.length });
+  history.record(snap('a'), snap('ab'), 'typing', 1000);
+  history.record(snap('ab'), snap('abc'), 'typing', 1200);
+  const undoMerged = history.undo(snap('abc'));
+  expect(undoMerged?.value === 'a', `连续输入未合并成一步，撤销得到「${undoMerged?.value}」`);
+  const redone = history.redo(snap('a'));
+  expect(redone?.value === 'abc', `重做未回到最新，得到「${redone?.value}」`);
+  history.record(snap('abc'), snap('abc!'), 'typing', 5000);
+  const undoPaused = history.undo(snap('abc!'));
+  expect(undoPaused?.value === 'abc', `停顿时长超过窗口后应单独成步，撤销得到「${undoPaused?.value}」`);
+  history.undo(snap('abc'));
+  history.record(snap('a'), snap('a?'), 'typing', 9000);
+  expect(!history.canRedo, '新编辑后重做记录未清空');
+
   // 持久化：storage key 与原站一致，且字段齐全
   const raw = win.localStorage.getItem('zhaotab-typeset');
   expect(Boolean(raw), '未写入 localStorage');
   if (raw) {
     const persisted = JSON.parse(raw).state ?? {};
-    for (const key of ['markdown', 'themeId', 'articleType', 'previewZoom', 'mainColor', 'partColors']) {
+    for (const key of ['markdown', 'themeId', 'articleType', 'previewZoom', 'fontScale', 'mainColor', 'partColors']) {
       expect(key in persisted, `持久化缺少字段 ${key}`);
     }
     expect(persisted.themeId === 'terminal' || typeof persisted.themeId === 'string', 'themeId 未持久化');

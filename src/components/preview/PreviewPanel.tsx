@@ -1,10 +1,14 @@
 import type { RefObject } from 'react';
 import { Eye } from 'lucide-react';
-import { ZOOM_LEVELS } from '../../lib/constants';
+import { FONT_SCALES, ZOOM_LEVELS } from '../../lib/constants';
 import { useTypesetStore } from '../../lib/store';
 import type { Theme } from '../../lib/types';
 import ToolPanel from '../shell/ToolPanel';
 import ThemePicker from '../theme/ThemePicker';
+
+const SEGMENTED_BUTTON = 'rounded px-1.5 py-0.5 tabular-nums transition-all';
+const SEGMENTED_ACTIVE = 'bg-white font-medium text-emerald-700 shadow-sm';
+const SEGMENTED_IDLE = 'text-zinc-500 hover:text-zinc-800';
 
 interface PreviewPanelProps {
   theme: Theme;
@@ -26,6 +30,8 @@ export default function PreviewPanel({
   const zoom = useTypesetStore((state) => state.previewZoom);
   const setZoom = useTypesetStore((state) => state.setPreviewZoom);
   const activeZoom = ZOOM_LEVELS.includes(zoom) ? zoom : 1;
+  const fontScale = useTypesetStore((state) => state.fontScale);
+  const setFontScale = useTypesetStore((state) => state.setFontScale);
 
   return (
     <ToolPanel
@@ -55,26 +61,42 @@ export default function PreviewPanel({
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-3 px-1 text-[11px] text-zinc-400">
-        <span className="truncate">复制后打开公众号后台「新的创作 → 写新图文」，在正文里粘贴</span>
-        <div
-          className="flex shrink-0 items-center gap-0.5 rounded-md bg-zinc-100 p-0.5"
-          title="缩小预览，一屏看整篇结构"
-        >
-          {ZOOM_LEVELS.map((level) => (
-            <button
-              key={level}
-              type="button"
-              onClick={() => setZoom(level)}
-              aria-pressed={level === activeZoom}
-              className={`rounded px-1.5 py-0.5 tabular-nums transition-all ${
-                level === activeZoom
-                  ? 'bg-white font-medium text-emerald-700 shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-800'
-              }`}
-            >
-              {level * 100}%
-            </button>
-          ))}
+        <span className="hidden truncate sm:inline">复制后打开公众号后台「新的创作 → 写新图文」，在正文里粘贴</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <div
+            className="flex shrink-0 items-center gap-0.5 rounded-md bg-zinc-100 p-0.5"
+            title="整体字号，复制到公众号后同样生效"
+          >
+            <span className="hidden pl-1 pr-0.5 sm:inline">字号</span>
+            {FONT_SCALES.map((scale) => (
+              <button
+                key={scale.value}
+                type="button"
+                onClick={() => setFontScale(scale.value)}
+                aria-pressed={scale.value === fontScale}
+                aria-label={`整体字号${scale.label}`}
+                className={`${SEGMENTED_BUTTON} ${scale.value === fontScale ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
+              >
+                {scale.label}
+              </button>
+            ))}
+          </div>
+          <div
+            className="flex shrink-0 items-center gap-0.5 rounded-md bg-zinc-100 p-0.5"
+            title="缩小预览，一屏看整篇结构（不影响复制结果）"
+          >
+            {ZOOM_LEVELS.map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() => setZoom(level)}
+                aria-pressed={level === activeZoom}
+                className={`${SEGMENTED_BUTTON} ${level === activeZoom ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
+              >
+                {level * 100}%
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </ToolPanel>

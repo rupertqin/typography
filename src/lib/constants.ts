@@ -55,6 +55,14 @@ export const PART_COLOR_PRESETS: ColorPreset[] = [
 /** 预览缩放档位 */
 export const ZOOM_LEVELS = [1, 0.75, 0.5];
 
+/** 整体字号档位：按比例缩放主题里的 px 字号，复制到公众号后同样生效 */
+export const FONT_SCALES = [
+  { value: 0.9, label: '小' },
+  { value: 1, label: '标准' },
+  { value: 1.1, label: '大' },
+  { value: 1.25, label: '特大' },
+];
+
 /** 主题卡「新」标记 */
 export const NEW_THEME_IDS = new Set([
   'grid',

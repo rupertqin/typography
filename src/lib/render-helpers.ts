@@ -166,6 +166,28 @@ export function applyListMarks(root: Element, theme: Theme, doc: Document): void
   });
 }
 
+/** 内联样式里的绝对字号；百分比字号（75%/90%）会随父级自动跟着缩放，无需处理 */
+const FONT_SIZE_PX = /font-size\s*:\s*([\d.]+)px/gi;
+
+const formatPx = (value: number) => String(Math.round(value * 10) / 10);
+
+/**
+ * 整体字号：按比例缩放内联样式里的 px 字号。
+ * 主题的根 section 与各级标题都用 px，只改根字号不会影响标题，所以逐节点等比缩放。
+ */
+export function scaleFontSizes(root: Element, scale: number): void {
+  if (!Number.isFinite(scale) || scale <= 0 || scale === 1) return;
+  const nodes: Element[] = [root, ...Array.from(root.querySelectorAll('*'))];
+  for (const node of nodes) {
+    const style = node.getAttribute('style');
+    if (!style || !style.includes('font-size')) continue;
+    node.setAttribute(
+      'style',
+      style.replace(FONT_SIZE_PX, (_, size: string) => `font-size:${formatPx(Number(size) * scale)}px`),
+    );
+  }
+}
+
 /** 卡片流主题：把正文按 h2 分组成卡片 */
 export function applyCard(root: Element, card: ThemeCardDecor, doc: Document): void {
   let current: Element | null = null;

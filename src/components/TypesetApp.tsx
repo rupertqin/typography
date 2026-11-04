@@ -19,6 +19,7 @@ export default function TypesetApp() {
   const themeId = useTypesetStore((state) => state.themeId);
   const mainColor = useTypesetStore((state) => state.mainColor);
   const partColors = useTypesetStore((state) => state.partColors);
+  const fontScale = useTypesetStore((state) => state.fontScale);
 
   const isMobile = useIsMobile();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -29,8 +30,8 @@ export default function TypesetApp() {
   const theme = ALL_THEMES.find((item) => item.id === themeId) ?? ALL_THEMES[0];
   const deferredMarkdown = useDeferredValue(markdown);
   const html = useMemo(
-    () => renderMarkdown(deferredMarkdown, theme, { main: mainColor, parts: partColors }),
-    [deferredMarkdown, theme, mainColor, partColors],
+    () => renderMarkdown(deferredMarkdown, theme, { main: mainColor, parts: partColors }, fontScale),
+    [deferredMarkdown, theme, mainColor, partColors, fontScale],
   );
 
   const handleCopy = async () => {

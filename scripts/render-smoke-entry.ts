@@ -65,6 +65,21 @@ const checklist = (THEMES as any[]).find((theme) => theme.id === 'checklist');
 const listHtml = renderMarkdown('- 第一项\n- 第二项', checklist);
 if (!listHtml.includes('list-style-type:none')) problems.push('checklist: 列表符号未接管');
 
+// 整体字号：px 字号等比缩放，百分比字号保持相对
+const percentSizes = (html: string) => (html.match(/font-size:[\d.]+%/g) ?? []).join(',');
+for (const theme of THEMES as any[]) {
+  const plain = renderMarkdown(SAMPLE_MARKDOWN, theme);
+  const scaled = renderMarkdown(SAMPLE_MARKDOWN, theme, { main: '', parts: {} }, 1.25);
+  const baseSize = Number(/font-size:([\d.]+)px/.exec(plain)?.[1]);
+  if (!Number.isFinite(baseSize)) {
+    problems.push(`${theme.id}: 整体字号找不到基准 px 字号`);
+    continue;
+  }
+  const expectSize = Math.round(baseSize * 12.5) / 10;
+  if (!scaled.includes(`font-size:${expectSize}px`)) problems.push(`${theme.id}: 整体字号未缩放根字号`);
+  if (percentSizes(scaled) !== percentSizes(plain)) problems.push(`${theme.id}: 整体字号误改了百分比字号`);
+}
+
 // 复杂内联语法
 const inline = renderMarkdown('文字 E=mc^2^ 与 H~2~O，~~删除~~，`code`', THEMES[1] as any);
 if (!/<sup[^>]*>2<\/sup>/.test(inline)) problems.push('上标未生效');

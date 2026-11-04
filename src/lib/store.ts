@@ -7,12 +7,14 @@ export interface TypesetState {
   themeId: string;
   articleType: string;
   previewZoom: number;
+  fontScale: number;
   mainColor: string;
   partColors: Record<string, string>;
   setMarkdown: (markdown: string) => void;
   setThemeId: (themeId: string) => void;
   setArticleType: (articleType: string) => void;
   setPreviewZoom: (previewZoom: number) => void;
+  setFontScale: (fontScale: number) => void;
   setMainColor: (mainColor: string) => void;
   setPartColor: (part: string, color: string) => void;
   resetColors: () => void;
@@ -26,12 +28,14 @@ export const useTypesetStore = create<TypesetState>()(
       themeId: 'orange',
       articleType: 'all',
       previewZoom: 1,
+      fontScale: 1,
       mainColor: '',
       partColors: {},
       setMarkdown: (markdown) => set({ markdown }),
       setThemeId: (themeId) => set({ themeId }),
       setArticleType: (articleType) => set({ articleType }),
       setPreviewZoom: (previewZoom) => set({ previewZoom }),
+      setFontScale: (fontScale) => set({ fontScale }),
       setMainColor: (mainColor) => set({ mainColor }),
       setPartColor: (part, color) =>
         set((state) => {

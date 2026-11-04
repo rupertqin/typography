@@ -11,14 +11,20 @@ import {
   normalizeFootnotes,
   normalizeImageSlots,
   preserveCodeWhitespace,
+  scaleFontSizes,
 } from './render-helpers';
 import type { ColorOverrides, Theme } from './types';
 
 /**
  * 与原站 or(markdown, theme, colors) 等价：
- * Markdown → HTML → 注入主题内联样式与装饰 → 可选配色重映射 → 返回可直接粘贴的 HTML。
+ * Markdown → HTML → 注入主题内联样式与装饰 → 可选配色重映射 → 整体字号 → 返回可直接粘贴的 HTML。
  */
-export function renderMarkdown(markdown: string, theme: Theme, colors?: ColorOverrides): string {
+export function renderMarkdown(
+  markdown: string,
+  theme: Theme,
+  colors?: ColorOverrides,
+  fontScale = 1,
+): string {
   if (typeof DOMParser === 'undefined') return '';
 
   const overrides: ColorOverrides = colors ?? { main: '', parts: {} };
@@ -120,6 +126,9 @@ export function renderMarkdown(markdown: string, theme: Theme, colors?: ColorOve
     root.setAttribute('data-part-self', 'page');
     applyColorOverrides(root, theme.accent, overrides);
   }
+
+  // 整体字号放在最后：配色重映射会重写 style，先缩放会被覆盖
+  scaleFontSizes(root, fontScale);
 
   root.querySelectorAll('[data-part], [data-part-self]').forEach((node) => {
     node.removeAttribute('data-part');
