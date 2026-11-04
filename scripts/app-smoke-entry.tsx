@@ -195,16 +195,96 @@ try {
     );
   }
 
-  // 整体字号：点「特大」后预览 HTML 跟着变，并写进 store
-  const htmlBeforeFont = html();
+  // 整体字号：点「极大」后正文根节点字号真的放大，并写进 store
+  const articleHtml = () =>
+    (mount.querySelector('section[style*="font-family"]') as HTMLElement | null)?.outerHTML ?? '';
+  const baseFontSize = Number(/font-size:([\d.]+)px/.exec(articleHtml())?.[1]);
+  expect(Number.isFinite(baseFontSize) && baseFontSize > 0, '预览正文缺少基准字号');
   const bigFontButton = Array.from(mount.querySelectorAll('button')).find(
-    (btn) => btn.getAttribute('aria-label') === '整体字号特大',
+    (btn) => btn.getAttribute('aria-label') === '整体字号极大',
   );
   expect(Boolean(bigFontButton), '缺少整体字号按钮');
   bigFontButton?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   await wait(160);
   expect(useTypesetStore.getState().fontScale === 1.25, '整体字号未写入 store');
-  expect(html() !== htmlBeforeFont, '切换整体字号后预览没有变化');
+  const scaledFontSize = Number(/font-size:([\d.]+)px/.exec(articleHtml())?.[1]);
+  expect(
+    scaledFontSize === Math.max(10, Math.round(baseFontSize * 1.25)),
+    `整体字号未生效：${baseFontSize}px → ${scaledFontSize}px`,
+  );
+
+  // 字体：只在主题 section 里包一层带字体的 wrapper，内层元素不写 font-family
+  const fontSelect = mount.querySelector('select[aria-label="正文字体"]') as HTMLSelectElement | null;
+  expect(Boolean(fontSelect), '缺少正文字体选择器');
+  const fontWrapperStyle = () => {
+    const wrapper = Array.from(mount.querySelectorAll('section')).find(
+      (node) =>
+        node.parentElement?.tagName === 'SECTION' &&
+        (node.getAttribute('style') ?? '').startsWith('font-family:'),
+    );
+    return wrapper?.getAttribute('style') ?? '';
+  };
+  if (fontSelect) {
+    fontSelect.value = 'song';
+    fontSelect.dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(160);
+    expect(useTypesetStore.getState().fontFamilyId === 'song', '字体未写入 store');
+    expect(fontWrapperStyle().includes('Songti SC'), `缺少承载宋体的 wrapper：${fontWrapperStyle()}`);
+
+    // 细体走 PingFang SC + font-weight，而不是 PostScript 字体名
+    fontSelect.value = 'pingfang-sc-light';
+    fontSelect.dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(160);
+    const thinStyle = fontWrapperStyle();
+    expect(thinStyle.includes('PingFang SC'), `细体未使用白名单字体名：${thinStyle}`);
+    expect(thinStyle.includes('font-weight:300'), `细体未带上字重：${thinStyle}`);
+    expect(!html().includes('&quot;'), '内联样式里残留了转义引号');
+    const textParagraph = Array.from(mount.querySelectorAll('p')).find((node) => node.textContent?.trim());
+    expect(
+      !(textParagraph?.getAttribute('style') ?? '').includes('font-family'),
+      '内层段落仍写了 font-family',
+    );
+  }
+
+  // 清空也要进历史：清空后 Ctrl+Z 能拿回原文，Ctrl+Shift+Z 能再清空
+  const clickByTitle = (title: string) => {
+    const button = Array.from(mount.querySelectorAll('button')).find(
+      (btn) => btn.getAttribute('title') === title,
+    ) as HTMLButtonElement | undefined;
+    button?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    return button;
+  };
+  const beforeClear = useTypesetStore.getState().markdown;
+  expect(clickByTitle('清空') !== undefined, '缺少清空按钮');
+  await wait(140);
+  expect(useTypesetStore.getState().markdown === '', '点清空后正文未清空');
+  win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+  await wait(140);
+  expect(useTypesetStore.getState().markdown === beforeClear, '清空后 Ctrl+Z 未恢复原文');
+  win.document.dispatchEvent(
+    new win.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true }),
+  );
+  await wait(140);
+  expect(useTypesetStore.getState().markdown === '', '清空撤销后 Ctrl+Shift+Z 未重新清空');
+
+  // 清空提示里的「撤销」与头部「重做」也要能来回，且撤销后提示条收起
+  if (textarea) {
+    valueSetter?.call(textarea, '清空前的正文');
+    textarea.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(140);
+    clickByTitle('清空');
+    await wait(140);
+    expect(text().includes('已清空'), '清空后缺少可撤销提示');
+    const noticeUndo = Array.from(mount.querySelectorAll('button')).find((btn) => btn.textContent === '撤销');
+    expect(Boolean(noticeUndo), '清空提示里缺少撤销入口');
+    noticeUndo?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(140);
+    expect(useTypesetStore.getState().markdown === '清空前的正文', '提示里的撤销未恢复清空前的正文');
+    expect(!text().includes('已清空'), '撤销后提示条未收起');
+    redoButton()?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(140);
+    expect(useTypesetStore.getState().markdown === '', '提示撤销后头部重做未重新清空');
+  }
 
   // 撤销 / 重做历史：连续输入合并成一步，停顿后另起一步，新编辑清空重做分支
   const history = new EditorHistory({ coalesceMs: 600 });
@@ -227,7 +307,16 @@ try {
   expect(Boolean(raw), '未写入 localStorage');
   if (raw) {
     const persisted = JSON.parse(raw).state ?? {};
-    for (const key of ['markdown', 'themeId', 'articleType', 'previewZoom', 'fontScale', 'mainColor', 'partColors']) {
+    for (const key of [
+      'markdown',
+      'themeId',
+      'articleType',
+      'previewZoom',
+      'fontScale',
+      'fontFamilyId',
+      'mainColor',
+      'partColors',
+    ]) {
       expect(key in persisted, `持久化缺少字段 ${key}`);
     }
     expect(persisted.themeId === 'terminal' || typeof persisted.themeId === 'string', 'themeId 未持久化');

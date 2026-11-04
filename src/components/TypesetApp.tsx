@@ -4,6 +4,7 @@ import EditorPanel from './editor/EditorPanel';
 import PreviewPanel from './preview/PreviewPanel';
 import ToolShell from './shell/ToolShell';
 import { copyRichText } from '../lib/clipboard';
+import { FONT_FAMILIES } from '../lib/constants';
 import { renderMarkdown } from '../lib/render';
 import { useTypesetStore } from '../lib/store';
 import { THEMES } from '../lib/themes.generated.js';
@@ -20,6 +21,7 @@ export default function TypesetApp() {
   const mainColor = useTypesetStore((state) => state.mainColor);
   const partColors = useTypesetStore((state) => state.partColors);
   const fontScale = useTypesetStore((state) => state.fontScale);
+  const fontFamilyId = useTypesetStore((state) => state.fontFamilyId);
 
   const isMobile = useIsMobile();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -28,10 +30,17 @@ export default function TypesetApp() {
   const [status, setStatus] = useState<CopyStatus>('idle');
 
   const theme = ALL_THEMES.find((item) => item.id === themeId) ?? ALL_THEMES[0];
+  const fontPreset = FONT_FAMILIES.find((item) => item.id === fontFamilyId);
   const deferredMarkdown = useDeferredValue(markdown);
   const html = useMemo(
-    () => renderMarkdown(deferredMarkdown, theme, { main: mainColor, parts: partColors }, fontScale),
-    [deferredMarkdown, theme, mainColor, partColors, fontScale],
+    () =>
+      renderMarkdown(deferredMarkdown, theme, {
+        colors: { main: mainColor, parts: partColors },
+        fontScale,
+        fontFamily: fontPreset?.stack ?? '',
+        fontWeight: fontPreset?.weight,
+      }),
+    [deferredMarkdown, theme, mainColor, partColors, fontScale, fontPreset],
   );
 
   const handleCopy = async () => {

@@ -169,7 +169,10 @@ export function applyListMarks(root: Element, theme: Theme, doc: Document): void
 /** 内联样式里的绝对字号；百分比字号（75%/90%）会随父级自动跟着缩放，无需处理 */
 const FONT_SIZE_PX = /font-size\s*:\s*([\d.]+)px/gi;
 
-const formatPx = (value: number) => String(Math.round(value * 10) / 10);
+/** 公众号里只用整数 px，避免小数在不同端上的兼容性差异；再小也不低于 10px */
+const MIN_FONT_PX = 10;
+
+const formatPx = (value: number) => Math.max(MIN_FONT_PX, Math.round(value));
 
 /**
  * 整体字号：按比例缩放内联样式里的 px 字号。
@@ -186,6 +189,52 @@ export function scaleFontSizes(root: Element, scale: number): void {
       style.replace(FONT_SIZE_PX, (_, size: string) => `font-size:${formatPx(Number(size) * scale)}px`),
     );
   }
+}
+
+/**
+ * 去掉内联 font-family 里的双引号：属性序列化会把它们写成 &quot;，
+ * 公众号预览的清洗链路在这类转义上容易出错，导致整条样式被丢掉。
+ * font-family:PingFang SC 这种不带引号的写法本身就是合法 CSS。
+ */
+export function stripFontFamilyQuotes(root: Element): void {
+  const nodes: Element[] = [root, ...Array.from(root.querySelectorAll('*'))];
+  for (const node of nodes) {
+    const style = node.getAttribute('style');
+    if (!style || !style.includes('"')) continue;
+    node.setAttribute(
+      'style',
+      style.replace(/font-family\s*:([^;]*)/gi, (_, value: string) => `font-family:${value.replace(/"/g, '')}`),
+    );
+  }
+}
+
+/**
+ * 正文字体 + 内容 wrapper：参照秀米/135 的粘贴结构，字体只声明在 section 容器上。
+ * 1) 选了字体时，主题 section 自身的 font-family 也换成它（它们粘贴后的 DOM 就是这样）；
+ * 2) 内容外面永远再包一层 section——微信粘贴时会把最外层节点当作粘贴根节点重建，
+ *    内层这层才是真正留在文章里的容器（选了字体就带字体，没选就是干净容器）。
+ * 逐个元素写 font-family 反而会被清洗链路整条丢弃，连带该元素的其他样式一起消失。
+ */
+export function applyFontFamily(root: Element, doc: Document, stack: string, weight?: number): void {
+  const family = stack.replace(/"/g, '').trim();
+  const rootStyle = root.getAttribute('style') ?? '';
+  const themeFamily = /font-family\s*:\s*([^;]+)/i.exec(rootStyle)?.[1]?.trim() ?? '';
+  const decl = family ? `font-family:${family};${weight ? `font-weight:${weight};` : ''}` : '';
+
+  if (decl) {
+    const rest = rootStyle
+      .replace(/font-family\s*:[^;]*;?/i, '')
+      .replace(/font-weight\s*:[^;]*;?/i, '');
+    root.setAttribute('style', decl + rest);
+  }
+
+  const wrapper = doc.createElement('section');
+  // 没有选字体时也带上主题字体：微信会丢弃没有任何属性的空 section，
+  // 带条 font-family 才能作为真实容器留在文章里。
+  const wrapperDecl = decl || (themeFamily ? `font-family:${themeFamily};` : '');
+  if (wrapperDecl) wrapper.setAttribute('style', wrapperDecl);
+  while (root.firstChild) wrapper.appendChild(root.firstChild);
+  root.appendChild(wrapper);
 }
 
 /** 卡片流主题：把正文按 h2 分组成卡片 */

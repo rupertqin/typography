@@ -93,14 +93,24 @@ export default function EditorPanel({ previewRef, isMobile }: EditorPanelProps) 
     });
   };
 
+  const dismissNotice = () => {
+    clearTimeout(noticeTimer.current);
+    setNotice(null);
+  };
+
   const undoEdit = () => {
     const previous = history.undo(readSnapshot());
-    if (previous) restore(previous);
+    if (!previous) return;
+    // 撤销/重做后上一次操作的提示（含「撤销」链接）就过期了，留着会多点一次撤销
+    dismissNotice();
+    restore(previous);
   };
 
   const redoEdit = () => {
     const next = history.redo(readSnapshot());
-    if (next) restore(next);
+    if (!next) return;
+    dismissNotice();
+    restore(next);
   };
 
   // 快捷键挂在 document 上：点过工具栏/清空按钮后焦点不在编辑区时也能撤销
@@ -150,11 +160,7 @@ export default function EditorPanel({ previewRef, isMobile }: EditorPanelProps) 
     commitEdit(next, next.length);
   };
 
-  const undoAction = () => {
-    clearTimeout(noticeTimer.current);
-    setNotice(null);
-    undoEdit();
-  };
+  const undoAction = () => undoEdit();
 
   const scrollToPreview = () => {
     const source = textarea.current;

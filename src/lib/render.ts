@@ -6,28 +6,37 @@ import {
   RENDER_ONLY_ATTRS,
   STYLE_KEY_BY_TAG,
   applyCard,
+  applyFontFamily,
   applyListMarks,
   isStructural,
   normalizeFootnotes,
   normalizeImageSlots,
   preserveCodeWhitespace,
   scaleFontSizes,
+  stripFontFamilyQuotes,
 } from './render-helpers';
 import type { ColorOverrides, Theme } from './types';
 
+export interface RenderOptions {
+  /** 配色重映射 */
+  colors?: ColorOverrides;
+  /** 整体字号缩放比例，默认 1 */
+  fontScale?: number;
+  /** 正文字体栈，空字符串表示沿用主题 */
+  fontFamily?: string;
+  /** 正文字重：细体 / 极细靠字重实现，只作用在没写死 font-weight 的元素上 */
+  fontWeight?: number;
+}
+
 /**
  * 与原站 or(markdown, theme, colors) 等价：
- * Markdown → HTML → 注入主题内联样式与装饰 → 可选配色重映射 → 整体字号 → 返回可直接粘贴的 HTML。
+ * Markdown → HTML → 注入主题内联样式与装饰 → 可选配色重映射 → 整体字号/字体 → 返回可直接粘贴的 HTML。
  */
-export function renderMarkdown(
-  markdown: string,
-  theme: Theme,
-  colors?: ColorOverrides,
-  fontScale = 1,
-): string {
+export function renderMarkdown(markdown: string, theme: Theme, options: RenderOptions = {}): string {
   if (typeof DOMParser === 'undefined') return '';
 
-  const overrides: ColorOverrides = colors ?? { main: '', parts: {} };
+  const { fontScale = 1, fontFamily = '', fontWeight } = options;
+  const overrides: ColorOverrides = options.colors ?? { main: '', parts: {} };
   const doc = new DOMParser().parseFromString(`<section>${parseMarkdown(markdown)}</section>`, 'text/html');
   const root = doc.body.firstElementChild as Element;
 
@@ -129,6 +138,8 @@ export function renderMarkdown(
 
   // 整体字号放在最后：配色重映射会重写 style，先缩放会被覆盖
   scaleFontSizes(root, fontScale);
+  applyFontFamily(root, doc, fontFamily, fontWeight);
+  stripFontFamilyQuotes(root);
 
   root.querySelectorAll('[data-part], [data-part-self]').forEach((node) => {
     node.removeAttribute('data-part');

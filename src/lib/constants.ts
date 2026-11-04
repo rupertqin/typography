@@ -57,10 +57,78 @@ export const ZOOM_LEVELS = [1, 0.75, 0.5];
 
 /** 整体字号档位：按比例缩放主题里的 px 字号，复制到公众号后同样生效 */
 export const FONT_SCALES = [
+  { value: 0.8, label: '极小' },
   { value: 0.9, label: '小' },
   { value: 1, label: '标准' },
   { value: 1.1, label: '大' },
-  { value: 1.25, label: '特大' },
+  { value: 1.25, label: '极大' },
+];
+
+/**
+ * 正文字体：公众号后台没有字体选择器，正文按读者设备的系统字体渲染。
+ * 内联 font-family 粘贴后一般能保留，但只有读者设备本地装了的字体才生效，
+ * 所以这里只提供系统字体栈；stack 为空表示沿用主题自己的字体。
+ */
+export interface FontFamilyPreset {
+  id: string;
+  label: string;
+  /** 字体栈（不要带引号：内联样式里的引号会变成 &quot;，微信预览容易因此丢样式） */
+  stack: string;
+  /** 字重：细体 / 极细用 font-weight 表达，比 PostScript 字体名更容易通过公众号清洗 */
+  weight?: number;
+  /** 苹果系统字体：安卓设备上没有，会回退到系统默认 */
+  iosOnly?: boolean;
+}
+
+export const FONT_FAMILIES: FontFamilyPreset[] = [
+  { id: 'theme', label: '主题字体', stack: '' },
+  {
+    id: 'sans',
+    label: '黑体',
+    stack: '-apple-system-font,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif',
+  },
+  { id: 'song', label: '宋体', stack: 'Songti SC,STSong,SimSun,serif' },
+  { id: 'kai', label: '楷体', stack: 'Kaiti SC,STKaiti,KaiTi,serif' },
+  /**
+   * 苹果系统字体（安卓没有，会回退到系统默认）。
+   * 细体 / 极细一律用白名单字体名 + font-weight 实现，不用 PingFangSC-Light 这类
+   * PostScript 名——名字不在公众号白名单里时整条声明会被剥掉，反而连字体都没了。
+   */
+  {
+    id: 'optima',
+    label: '中文细体',
+    iosOnly: true,
+    stack: 'Optima-Regular,Optima,PingFang SC,sans-serif',
+    weight: 300,
+  },
+  {
+    id: 'pingfang-sc-light',
+    label: '苹方简细体',
+    iosOnly: true,
+    stack: 'PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif',
+    weight: 300,
+  },
+  {
+    id: 'pingfang-sc-ultralight',
+    label: '苹方简极细',
+    iosOnly: true,
+    stack: 'PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif',
+    weight: 200,
+  },
+  {
+    id: 'pingfang-tc-light',
+    label: '苹方繁细体',
+    iosOnly: true,
+    stack: 'PingFang TC,sans-serif',
+    weight: 300,
+  },
+  {
+    id: 'pingfang-tc-ultralight',
+    label: '苹方繁极细',
+    iosOnly: true,
+    stack: 'PingFang TC,sans-serif',
+    weight: 200,
+  },
 ];
 
 /** 主题卡「新」标记 */

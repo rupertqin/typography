@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import { Eye } from 'lucide-react';
-import { FONT_SCALES, ZOOM_LEVELS } from '../../lib/constants';
+import { FONT_FAMILIES, FONT_SCALES, ZOOM_LEVELS } from '../../lib/constants';
 import { useTypesetStore } from '../../lib/store';
 import type { Theme } from '../../lib/types';
 import ToolPanel from '../shell/ToolPanel';
@@ -32,6 +32,10 @@ export default function PreviewPanel({
   const activeZoom = ZOOM_LEVELS.includes(zoom) ? zoom : 1;
   const fontScale = useTypesetStore((state) => state.fontScale);
   const setFontScale = useTypesetStore((state) => state.setFontScale);
+  const fontFamilyId = useTypesetStore((state) => state.fontFamilyId);
+  const setFontFamilyId = useTypesetStore((state) => state.setFontFamilyId);
+  const baseFonts = FONT_FAMILIES.filter((font) => !font.iosOnly);
+  const iosFonts = FONT_FAMILIES.filter((font) => font.iosOnly);
 
   return (
     <ToolPanel
@@ -62,7 +66,32 @@ export default function PreviewPanel({
 
       <div className="flex shrink-0 items-center justify-between gap-3 px-1 text-[11px] text-zinc-400">
         <span className="hidden truncate sm:inline">复制后打开公众号后台「新的创作 → 写新图文」，在正文里粘贴</span>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <label
+            className="flex shrink-0 items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5"
+            title="正文字体：公众号只认读者设备自带的字体，选不到会回退系统默认"
+          >
+            <span className="hidden sm:inline">字体</span>
+            <select
+              value={fontFamilyId}
+              onChange={(event) => setFontFamilyId(event.target.value)}
+              aria-label="正文字体"
+              className="cursor-pointer bg-transparent py-0 pr-0.5 text-[11px] text-zinc-600 focus:outline-none"
+            >
+              {baseFonts.map((font) => (
+                <option key={font.id} value={font.id}>
+                  {font.label}
+                </option>
+              ))}
+              <optgroup label="苹果系统字体（安卓回退默认）">
+                {iosFonts.map((font) => (
+                  <option key={font.id} value={font.id}>
+                    {font.label}（限 iOS）
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
           <div
             className="flex shrink-0 items-center gap-0.5 rounded-md bg-zinc-100 p-0.5"
             title="整体字号，复制到公众号后同样生效"
