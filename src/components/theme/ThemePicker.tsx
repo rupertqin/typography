@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Palette, Shuffle, Undo2 } from 'lucide-react';
 import { ARTICLE_TYPES } from '../../lib/constants';
 import { THEMES } from '../../lib/themes.generated.js';
-import { useTypesetStore } from '../../lib/store';
+import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/types';
 import ColorPanel, { ColorPanelHeader } from '../color/ColorPanel';
 import ThemeMenu from './ThemeMenu';
@@ -15,11 +15,11 @@ const ICON_BUTTON =
 const ALL_THEMES = THEMES as Theme[];
 
 export default function ThemePicker({ theme, inHeader = false }: { theme: Theme; inHeader?: boolean }) {
-  const setThemeId = useTypesetStore((state) => state.setThemeId);
-  const articleType = useTypesetStore((state) => state.articleType);
-  const setArticleType = useTypesetStore((state) => state.setArticleType);
-  const mainColor = useTypesetStore((state) => state.mainColor);
-  const partColorCount = useTypesetStore((state) => Object.keys(state.partColors).length);
+  const setThemeId = useTypographyStore((state) => state.setThemeId);
+  const articleType = useTypographyStore((state) => state.articleType);
+  const setArticleType = useTypographyStore((state) => state.setArticleType);
+  const mainColor = useTypographyStore((state) => state.mainColor);
+  const partColorCount = useTypographyStore((state) => Object.keys(state.partColors).length);
 
   const [panel, setPanel] = useState<null | 'theme' | 'color'>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);

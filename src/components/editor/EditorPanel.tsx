@@ -22,7 +22,7 @@ import { INSERT_ACTIONS } from '../../lib/constants';
 import { EditorHistory } from '../../lib/history';
 import type { EditorSnapshot } from '../../lib/history';
 import { SAMPLE_MARKDOWN } from '../../lib/sample';
-import { useTypesetStore } from '../../lib/store';
+import { useTypographyStore } from '../../lib/store';
 import type { InsertAction } from '../../lib/constants';
 import ToolPanel from '../shell/ToolPanel';
 
@@ -54,8 +54,8 @@ interface EditorPanelProps {
 }
 
 export default function EditorPanel({ previewRef, isMobile }: EditorPanelProps) {
-  const markdown = useTypesetStore((state) => state.markdown);
-  const setMarkdown = useTypesetStore((state) => state.setMarkdown);
+  const markdown = useTypographyStore((state) => state.markdown);
+  const setMarkdown = useTypographyStore((state) => state.setMarkdown);
 
   const textarea = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<EditorHistory | null>(null);
@@ -69,7 +69,7 @@ export default function EditorPanel({ previewRef, isMobile }: EditorPanelProps) 
 
   /** 读取「当前时刻」的快照：正文取自 store，光标取自 textarea */
   const readSnapshot = (): EditorSnapshot => {
-    const value = useTypesetStore.getState().markdown;
+    const value = useTypographyStore.getState().markdown;
     const length = value.length;
     const node = textarea.current;
     return {

@@ -1,15 +1,15 @@
 ---
 import Base from '../layouts/Base.astro';
-import TypesetApp from '../components/TypesetApp';
+import TypographyApp from '../components/TypographyApp';
 ---
 
 <Base
-  title="公众号排版 - 找Tab"
+  title="公众号排版风格 · Typography"
   description="微信公众号文章排版工具：用 Markdown 写文章，实时预览排版效果，35 套主题可选（标题、引用、分割线各有装饰），代码块自动高亮。一键复制带样式的正文，粘贴到公众号后台即可，草稿自动保存在本机。"
 >
   <main class="min-h-full w-full">
     <div class="mx-auto w-full px-3 py-3 sm:px-5 sm:py-5 lg:h-[100dvh] lg:py-5">
-      <TypesetApp client:only="react" />
+      <TypographyApp client:only="react" />
     </div>
   </main>
 </Base>

@@ -6,7 +6,7 @@ import ToolShell from './shell/ToolShell';
 import { copyRichText } from '../lib/clipboard';
 import { FONT_FAMILIES } from '../lib/constants';
 import { renderMarkdown } from '../lib/render';
-import { useTypesetStore } from '../lib/store';
+import { useTypographyStore } from '../lib/store';
 import { THEMES } from '../lib/themes.generated.js';
 import type { Theme } from '../lib/types';
 import { useIsMobile } from '../lib/useIsMobile';
@@ -15,13 +15,13 @@ const ALL_THEMES = THEMES as Theme[];
 
 type CopyStatus = 'idle' | 'ok' | 'fail';
 
-export default function TypesetApp() {
-  const markdown = useTypesetStore((state) => state.markdown);
-  const themeId = useTypesetStore((state) => state.themeId);
-  const mainColor = useTypesetStore((state) => state.mainColor);
-  const partColors = useTypesetStore((state) => state.partColors);
-  const fontScale = useTypesetStore((state) => state.fontScale);
-  const fontFamilyId = useTypesetStore((state) => state.fontFamilyId);
+export default function TypographyApp() {
+  const markdown = useTypographyStore((state) => state.markdown);
+  const themeId = useTypographyStore((state) => state.themeId);
+  const mainColor = useTypographyStore((state) => state.mainColor);
+  const partColors = useTypographyStore((state) => state.partColors);
+  const fontScale = useTypographyStore((state) => state.fontScale);
+  const fontFamilyId = useTypographyStore((state) => state.fontFamilyId);
 
   const isMobile = useIsMobile();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -58,7 +58,7 @@ export default function TypesetApp() {
     <div className="flex flex-col lg:h-full">
       <ToolShell
         icon={Newspaper}
-        title="公众号排版"
+        title="公众号排版风格"
         description="写 Markdown，一键复制带样式的正文，粘贴到公众号后台即可。"
         actions={
           <button

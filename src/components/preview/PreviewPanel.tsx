@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import { Eye } from 'lucide-react';
 import { FONT_FAMILIES, FONT_SCALES, ZOOM_LEVELS } from '../../lib/constants';
-import { useTypesetStore } from '../../lib/store';
+import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/types';
 import ToolPanel from '../shell/ToolPanel';
 import ThemePicker from '../theme/ThemePicker';
@@ -27,13 +27,13 @@ export default function PreviewPanel({
   scrollerRef,
   articleRef,
 }: PreviewPanelProps) {
-  const zoom = useTypesetStore((state) => state.previewZoom);
-  const setZoom = useTypesetStore((state) => state.setPreviewZoom);
+  const zoom = useTypographyStore((state) => state.previewZoom);
+  const setZoom = useTypographyStore((state) => state.setPreviewZoom);
   const activeZoom = ZOOM_LEVELS.includes(zoom) ? zoom : 1;
-  const fontScale = useTypesetStore((state) => state.fontScale);
-  const setFontScale = useTypesetStore((state) => state.setFontScale);
-  const fontFamilyId = useTypesetStore((state) => state.fontFamilyId);
-  const setFontFamilyId = useTypesetStore((state) => state.setFontFamilyId);
+  const fontScale = useTypographyStore((state) => state.fontScale);
+  const setFontScale = useTypographyStore((state) => state.setFontScale);
+  const fontFamilyId = useTypographyStore((state) => state.fontFamilyId);
+  const setFontFamilyId = useTypographyStore((state) => state.setFontFamilyId);
   const baseFonts = FONT_FAMILIES.filter((font) => !font.iosOnly);
   const iosFonts = FONT_FAMILIES.filter((font) => font.iosOnly);
 

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SAMPLE_MARKDOWN } from './sample';
 
-export interface TypesetState {
+export interface TypographyState {
   markdown: string;
   themeId: string;
   articleType: string;
@@ -22,8 +22,8 @@ export interface TypesetState {
   resetColors: () => void;
 }
 
-/** storage key 与原站一致，方便直接对照 localStorage 内容 */
-export const useTypesetStore = create<TypesetState>()(
+/** 草稿持久化 key（localStorage） */
+export const useTypographyStore = create<TypographyState>()(
   persist(
     (set) => ({
       markdown: SAMPLE_MARKDOWN,
@@ -50,6 +50,6 @@ export const useTypesetStore = create<TypesetState>()(
         }),
       resetColors: () => set({ mainColor: '', partColors: {} }),
     }),
-    { name: 'zhaotab-typeset' },
+    { name: 'typography' },
   ),
 );

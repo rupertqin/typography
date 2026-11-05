@@ -1,5 +1,5 @@
 /** 默认示例文章（逐字照抄原站） */
-export const SAMPLE_MARKDOWN = `# 公众号排版示例
+export const SAMPLE_MARKDOWN = `# 公众号排版风格示例
 
 在左边写 **Markdown**，右边就是排好版的效果。点右上角「复制到公众号」，再到公众号后台的正文里粘贴即可。
 

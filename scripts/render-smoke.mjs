@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const workdir = resolve(ROOT, 'node_modules/.cache/zhaotab-smoke');
+const workdir = resolve(ROOT, 'node_modules/.cache/typography-smoke');
 mkdirSync(workdir, { recursive: true });
 const outfile = join(workdir, 'entry.mjs');
 

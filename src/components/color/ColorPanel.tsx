@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { GripHorizontal, Undo2, X } from 'lucide-react';
 import { MAIN_COLOR_PRESETS, PART_COLOR_PRESETS } from '../../lib/constants';
 import { availableColorParts, isHexColor } from '../../lib/recolor';
-import { useTypesetStore } from '../../lib/store';
+import { useTypographyStore } from '../../lib/store';
 import type { ColorPreset, Theme } from '../../lib/types';
 
 interface ColorPanelHeaderProps {
@@ -112,11 +112,11 @@ function CustomSwatch({
 }
 
 export default function ColorPanel({ theme }: { theme: Theme }) {
-  const mainColor = useTypesetStore((state) => state.mainColor);
-  const setMainColor = useTypesetStore((state) => state.setMainColor);
-  const partColors = useTypesetStore((state) => state.partColors);
-  const setPartColor = useTypesetStore((state) => state.setPartColor);
-  const resetColors = useTypesetStore((state) => state.resetColors);
+  const mainColor = useTypographyStore((state) => state.mainColor);
+  const setMainColor = useTypographyStore((state) => state.setMainColor);
+  const partColors = useTypographyStore((state) => state.partColors);
+  const setPartColor = useTypographyStore((state) => state.setPartColor);
+  const resetColors = useTypographyStore((state) => state.resetColors);
 
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? (mainColor || theme.accent);

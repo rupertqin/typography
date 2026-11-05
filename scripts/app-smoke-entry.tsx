@@ -2,7 +2,7 @@ import { JSDOM } from 'jsdom';
 
 /** 在 Node 里用 jsdom 挂载真实组件，验证首屏、主题菜单与配色面板不会运行时崩 */
 const dom = new JSDOM('<!doctype html><html><body><div id="app"></div></body></html>', {
-  url: 'https://localhost/typeset',
+  url: 'https://localhost/typography',
   pretendToBeVisual: true,
 });
 
@@ -62,10 +62,10 @@ g.matchMedia = win.matchMedia;
 
 const { createRoot } = await import('react-dom/client');
 const { THEMES } = await import('../src/lib/themes.generated.js');
-const { useTypesetStore } = await import('../src/lib/store');
+const { useTypographyStore } = await import('../src/lib/store');
 const { EditorHistory } = await import('../src/lib/history');
 const { createElement } = await import('react');
-const { default: TypesetApp } = await import('../src/components/TypesetApp');
+const { default: TypographyApp } = await import('../src/components/TypographyApp');
 
 const mount = win.document.getElementById('app') as HTMLElement;
 const root = createRoot(mount);
@@ -78,17 +78,17 @@ const expect = (ok: boolean, message: string) => {
 };
 
 try {
-  root.render(createElement(TypesetApp));
+  root.render(createElement(TypographyApp));
   await wait(120);
 
   const text = () => mount.textContent ?? '';
   const html = () => mount.innerHTML;
 
-  expect(text().includes('公众号排版'), '缺少标题「公众号排版」');
+  expect(text().includes('公众号排版风格'), '缺少标题「公众号排版风格」');
   expect(text().includes('复制到公众号'), '缺少复制按钮');
   expect(text().includes('草稿自动保存在本机'), '缺少草稿统计行');
   expect(text().includes('橙心'), '默认主题不是橙心');
-  expect(html().includes('公众号排版示例'), '预览未渲染示例文章');
+  expect(html().includes('公众号排版风格示例'), '预览未渲染示例文章');
   expect(html().includes('font-family:-apple-system'), '预览未注入主题样式');
   expect(text().includes('35 套可选') || html().includes('35 套可选'), '示例正文未渲染');
 
@@ -147,7 +147,7 @@ try {
   expect(!mount.textContent?.includes('全部恢复模板原色'), 'Esc 未关闭配色面板');
 
   // 清空正文 → 空态与复制按钮禁用
-  useTypesetStore.getState().setMarkdown('');
+  useTypographyStore.getState().setMarkdown('');
   await wait(160);
   expect(text().includes('左边写点什么'), '清空后未显示预览空态');
   const copyButton = Array.from(mount.querySelectorAll('button')).find((btn) =>
@@ -174,14 +174,14 @@ try {
     valueSetter?.call(textarea, '撤销测试');
     textarea.dispatchEvent(new win.Event('input', { bubbles: true }));
     await wait(140);
-    expect(useTypesetStore.getState().markdown === '撤销测试', '模拟输入未写入正文');
+    expect(useTypographyStore.getState().markdown === '撤销测试', '模拟输入未写入正文');
     expect(!undoButton()?.disabled, '编辑后撤销按钮仍禁用');
 
     win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
     await wait(140);
     expect(
-      useTypesetStore.getState().markdown === '',
-      `Ctrl+Z 未撤销，当前「${useTypesetStore.getState().markdown}」`,
+      useTypographyStore.getState().markdown === '',
+      `Ctrl+Z 未撤销，当前「${useTypographyStore.getState().markdown}」`,
     );
     expect(!redoButton()?.disabled, '撤销后重做按钮仍禁用');
 
@@ -190,8 +190,8 @@ try {
     );
     await wait(140);
     expect(
-      useTypesetStore.getState().markdown === '撤销测试',
-      `Ctrl+Shift+Z 未重做，当前「${useTypesetStore.getState().markdown}」`,
+      useTypographyStore.getState().markdown === '撤销测试',
+      `Ctrl+Shift+Z 未重做，当前「${useTypographyStore.getState().markdown}」`,
     );
   }
 
@@ -206,7 +206,7 @@ try {
   expect(Boolean(bigFontButton), '缺少整体字号按钮');
   bigFontButton?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   await wait(160);
-  expect(useTypesetStore.getState().fontScale === 1.25, '整体字号未写入 store');
+  expect(useTypographyStore.getState().fontScale === 1.25, '整体字号未写入 store');
   const scaledFontSize = Number(/font-size:([\d.]+)px/.exec(articleHtml())?.[1]);
   expect(
     scaledFontSize === Math.max(10, Math.round(baseFontSize * 1.25)),
@@ -228,7 +228,7 @@ try {
     fontSelect.value = 'song';
     fontSelect.dispatchEvent(new win.Event('change', { bubbles: true }));
     await wait(160);
-    expect(useTypesetStore.getState().fontFamilyId === 'song', '字体未写入 store');
+    expect(useTypographyStore.getState().fontFamilyId === 'song', '字体未写入 store');
     expect(fontWrapperStyle().includes('Songti SC'), `缺少承载宋体的 wrapper：${fontWrapperStyle()}`);
 
     // 细体走 PingFang SC + font-weight，而不是 PostScript 字体名
@@ -254,18 +254,18 @@ try {
     button?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
     return button;
   };
-  const beforeClear = useTypesetStore.getState().markdown;
+  const beforeClear = useTypographyStore.getState().markdown;
   expect(clickByTitle('清空') !== undefined, '缺少清空按钮');
   await wait(140);
-  expect(useTypesetStore.getState().markdown === '', '点清空后正文未清空');
+  expect(useTypographyStore.getState().markdown === '', '点清空后正文未清空');
   win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
   await wait(140);
-  expect(useTypesetStore.getState().markdown === beforeClear, '清空后 Ctrl+Z 未恢复原文');
+  expect(useTypographyStore.getState().markdown === beforeClear, '清空后 Ctrl+Z 未恢复原文');
   win.document.dispatchEvent(
     new win.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true }),
   );
   await wait(140);
-  expect(useTypesetStore.getState().markdown === '', '清空撤销后 Ctrl+Shift+Z 未重新清空');
+  expect(useTypographyStore.getState().markdown === '', '清空撤销后 Ctrl+Shift+Z 未重新清空');
 
   // 清空提示里的「撤销」与头部「重做」也要能来回，且撤销后提示条收起
   if (textarea) {
@@ -279,11 +279,11 @@ try {
     expect(Boolean(noticeUndo), '清空提示里缺少撤销入口');
     noticeUndo?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
     await wait(140);
-    expect(useTypesetStore.getState().markdown === '清空前的正文', '提示里的撤销未恢复清空前的正文');
+    expect(useTypographyStore.getState().markdown === '清空前的正文', '提示里的撤销未恢复清空前的正文');
     expect(!text().includes('已清空'), '撤销后提示条未收起');
     redoButton()?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
     await wait(140);
-    expect(useTypesetStore.getState().markdown === '', '提示撤销后头部重做未重新清空');
+    expect(useTypographyStore.getState().markdown === '', '提示撤销后头部重做未重新清空');
   }
 
   // 撤销 / 重做历史：连续输入合并成一步，停顿后另起一步，新编辑清空重做分支
@@ -303,7 +303,7 @@ try {
   expect(!history.canRedo, '新编辑后重做记录未清空');
 
   // 持久化：storage key 与原站一致，且字段齐全
-  const raw = win.localStorage.getItem('zhaotab-typeset');
+  const raw = win.localStorage.getItem('typography');
   expect(Boolean(raw), '未写入 localStorage');
   if (raw) {
     const persisted = JSON.parse(raw).state ?? {};
