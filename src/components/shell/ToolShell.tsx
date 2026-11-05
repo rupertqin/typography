@@ -11,19 +11,26 @@ interface ToolShellProps {
 }
 
 /**
- * 同一份产物会同时挂在 /typography/（父站反代）与子域根路径，
- * 只在子路径下显示「返回站点」，避免独立访问时出现多余的返回入口
+ * 同一份产物可挂在任意路径：子域名根（typography.gantz.host）、父站子路由
+ * （/typography/）、GitHub Pages 项目站点（/Typography/）。路径前缀不写死：
+ * 当前不在站点根，就说明被上一级站点挂载了，返回地址取上一级目录
+ * （/typography/ → 站根，/Typography/ → rupertqin.github.io 根）。
+ * PUBLIC_BACK_URL 可显式覆盖。
  */
 const BACK_URL = import.meta.env.PUBLIC_BACK_URL as string | undefined;
 
-const underSubPath = () =>
-  typeof window !== 'undefined' && window.location.pathname.startsWith('/typography');
+const backHref = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  const path = window.location.pathname.replace(/\/+$/, '');
+  if (path === '' || path === '/') return undefined; // 站点根，没有上一级
+  return BACK_URL || new URL('../', window.location.href).href;
+};
 
 /**
  * 工具外壳（compact hero）：渐变图标 + 标题/描述 + 右侧操作区。
  */
 export default function ToolShell({ icon: Icon, title, description, actions, children }: ToolShellProps) {
-  const backUrl = BACK_URL && underSubPath() ? BACK_URL : undefined;
+  const backUrl = backHref();
 
   return (
     <div className="flex flex-col gap-4 lg:h-full lg:min-h-0">

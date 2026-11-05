@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/relativize.mjs",
     "preview": "astro preview",
     "extract:themes": "node scripts/extract-themes.mjs",
     "check:themes": "node scripts/check-themes.mjs",
