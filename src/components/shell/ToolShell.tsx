@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { resolveBackHref } from '../../lib/backUrl';
 
 interface ToolShellProps {
   icon: LucideIcon;
@@ -11,16 +12,13 @@ interface ToolShellProps {
 }
 
 /**
- * 同一份产物可挂在子域名根或任意子路径。不在站点根就说明被上一级站点挂载了，
- * 「返回站点」取上一级目录；PUBLIC_BACK_URL 可显式覆盖。
+ * 父站地址的判定见 lib/backUrl.ts：子路径取同域上一级，独立子域名根才用 PUBLIC_BACK_URL。
  */
 const BACK_URL = import.meta.env.PUBLIC_BACK_URL as string | undefined;
 
 const backHref = (): string | undefined => {
   if (typeof window === 'undefined') return undefined;
-  const path = window.location.pathname.replace(/\/+$/, '');
-  if (path === '' || path === '/') return undefined; // 站点根，没有上一级
-  return BACK_URL || new URL('../', window.location.href).href;
+  return resolveBackHref(window.location.pathname, window.location.href, BACK_URL);
 };
 
 /**

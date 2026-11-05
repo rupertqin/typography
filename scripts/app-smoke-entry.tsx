@@ -65,6 +65,7 @@ const { THEMES } = await import('../src/lib/themes.generated.js');
 const { useTypographyStore } = await import('../src/lib/store');
 const { EditorHistory } = await import('../src/lib/history');
 const { createElement } = await import('react');
+const { resolveBackHref } = await import('../src/lib/backUrl');
 const { default: TypographyApp } = await import('../src/components/TypographyApp');
 
 const mount = win.document.getElementById('app') as HTMLElement;
@@ -301,6 +302,26 @@ try {
   history.undo(snap('abc'));
   history.record(snap('a'), snap('a?'), 'typing', 9000);
   expect(!history.canRedo, '新编辑后重做记录未清空');
+
+  // 「返回站点」目标：子路径回同域上一级（GitHub Pages 项目站点不能被 PUBLIC_BACK_URL 抢走），
+  // 只有独立子域名的根才用显式父站，没配就不显示按钮
+  expect(
+    resolveBackHref('/typography/', 'https://rupertqin.github.io/typography/', 'https://gantz.host') ===
+      'https://rupertqin.github.io/',
+    '子路径挂载没有回同域上一级',
+  );
+  expect(
+    resolveBackHref('/typography/', 'https://gantz.host/typography/', 'https://gantz.host') === 'https://gantz.host/',
+    '主站反代的子路径没有回主站根',
+  );
+  expect(
+    resolveBackHref('/', 'https://typography.gantz.host/', 'https://gantz.host') === 'https://gantz.host',
+    '子域名根没有使用显式父站',
+  );
+  expect(
+    resolveBackHref('/', 'https://typography.gantz.host/') === undefined,
+    '子域名根未配置父站时不应出现返回按钮',
+  );
 
   // 持久化：storage key 与原站一致，且字段齐全
   const raw = win.localStorage.getItem('typography');

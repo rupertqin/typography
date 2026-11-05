@@ -27,6 +27,9 @@ env:
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   PAGES_PROJECT: typography
+  # 只对「挂在域名根」的部署生效（typography.gantz.host）：那是子域名，URL 里推不出父站。
+  # 挂在子路径下的部署（GitHub Pages 项目站点、主站反代）一律取同域上一级，不受它影响。
+  PUBLIC_BACK_URL: https://gantz.host
 
 jobs:
   build:
