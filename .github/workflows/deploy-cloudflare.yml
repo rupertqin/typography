@@ -1,0 +1,161 @@
+name: Deploy to Cloudflare
+
+# 纯静态产物双通道发布：
+#   - Workers Static Assets（主入口，typography-site.<子域>.workers.dev）
+#   - Cloudflare Pages（备用/对照，typography-site.pages.dev）
+# 与 GitHub Pages 流水线（deploy-pages.yml）互不影响。
+#
+# 需要的仓库 Secrets：
+#   CLOUDFLARE_API_TOKEN  —— 权限：Workers Scripts:Edit、Cloudflare Pages:Edit、Account Settings:Read
+#   CLOUDFLARE_ACCOUNT_ID —— Cloudflare 控制台右侧栏的 Account ID
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  WORKER_NAME: typography-site
+  PAGES_PROJECT: typography-site
+
+jobs:
+  build:
+    name: Build static site
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Theme checks + smoke
+        run: |
+          npm run extract:themes
+          npm run check:themes
+          npm run smoke
+
+      # 独立访问（typography.gantz.host / *.pages.dev）：base 用默认的 /
+      - name: Build with Astro (standalone, base=/)
+        run: npm run build
+
+      # 被父站 gantz.host/typography 反代时用：同一份源码按 /typography 前缀再构建一份，
+      # 放在 dist/typography，这样父站 Worker 只需原样转发路径，无需改写 HTML。
+      - name: Build embedded variant (base=/typography)
+        env:
+          BASE_PATH: /typography
+          PUBLIC_BACK_URL: https://gantz.host
+        run: npx astro build --outDir dist/typography
+
+      - name: Verify static output
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          test -f dist/favicon.svg
+          test -n "$(find dist/_astro -name '*.js' -print -quit)"
+          test -f dist/typography/index.html
+          test -n "$(find dist/typography/_astro -name '*.js' -print -quit)"
+          if grep -q "/typography/_astro/" dist/index.html; then
+            echo "::error::独立变体里出现了 /typography/ 前缀，base 未按预期生效"
+            exit 1
+          fi
+          grep -q "/typography/_astro/" dist/typography/index.html || {
+            echo "::error::内嵌变体缺少 /typography/ 前缀"
+            exit 1
+          }
+          echo "dist 文件数: $(find dist -type f | wc -l)"
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 1
+
+  deploy-workers:
+    name: Deploy to Workers (static assets)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Cloudflare credentials
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "::error::缺少 CLOUDFLARE_API_TOKEN 或 CLOUDFLARE_ACCOUNT_ID，请在仓库 Settings → Secrets and variables → Actions 中配置"
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Deploy
+        run: npx wrangler deploy
+
+  deploy-pages:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Cloudflare credentials
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "::error::缺少 CLOUDFLARE_API_TOKEN 或 CLOUDFLARE_ACCOUNT_ID，请在仓库 Settings → Secrets and variables → Actions 中配置"
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      # 项目已存在时命令会报错（退出码非 0），在此忽略即可
+      - name: Ensure Pages project exists
+        run: npx wrangler pages project create "$PAGES_PROJECT" --production-branch=main || true
+
+      - name: Deploy
+        run: npx wrangler pages deploy dist --project-name="$PAGES_PROJECT" --branch=main --commit-dirty=true

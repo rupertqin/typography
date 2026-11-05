@@ -2,7 +2,7 @@ import { JSDOM } from 'jsdom';
 
 /** 在 Node 里用 jsdom 挂载真实组件，验证首屏、主题菜单与配色面板不会运行时崩 */
 const dom = new JSDOM('<!doctype html><html><body><div id="app"></div></body></html>', {
-  url: 'https://localhost/typography',
+  url: 'https://localhost/',
   pretendToBeVisual: true,
 });
 

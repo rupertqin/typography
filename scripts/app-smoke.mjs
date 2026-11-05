@@ -20,7 +20,11 @@ try {
     outfile,
     external: ['jsdom'],
     logLevel: 'silent',
-    define: { 'process.env.NODE_ENV': '"development"' },
+    define: {
+      'process.env.NODE_ENV': '"development"',
+      // 组件里读 import.meta.env（Astro/Vite 注入），esbuild 直跑 node 时没有该对象
+      'import.meta.env.PUBLIC_BACK_URL': '""',
+    },
   });
   await import(pathToFileURL(outfile).href);
 } finally {

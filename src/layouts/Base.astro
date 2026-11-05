@@ -4,10 +4,13 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description: string;
-  redirectTo?: string;
 }
 
-const { title, description, redirectTo } = Astro.props;
+const { title, description } = Astro.props;
+// BASE_URL 在 base 不带尾斜杠时也可能缺 '/'（如 '/typography'），拼接前补齐
+const rawBase = import.meta.env.BASE_URL;
+const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+const favicon = `${base}favicon.svg`;
 ---
 
 <!doctype html>
@@ -17,8 +20,7 @@ const { title, description, redirectTo } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#10b981" />
     <meta name="description" content={description} />
-    {redirectTo && <meta http-equiv="refresh" content={`0; url=${redirectTo}`} />}
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={favicon} />
     <title>{title}</title>
   </head>
   <body class="min-h-full bg-[#fafafa]">

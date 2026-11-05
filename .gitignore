@@ -4,3 +4,5 @@ dist/
 .scratch/
 .DS_Store
 *.log
+
+.codebuddy

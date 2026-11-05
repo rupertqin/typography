@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -9,9 +10,11 @@ interface ToolShellProps {
   children: ReactNode;
 }
 
+/** 嵌入父站时（PUBLIC_BACK_URL 存在）显示返回入口，独立部署不显示 */
+const BACK_URL = import.meta.env.PUBLIC_BACK_URL as string | undefined;
+
 /**
  * 工具外壳（compact hero）：渐变图标 + 标题/描述 + 右侧操作区。
- * 骨架与原站 ToolUI 的 ToolShell 一致，仅保留本工具用到的 compact 分支。
  */
 export default function ToolShell({ icon: Icon, title, description, actions, children }: ToolShellProps) {
   return (
@@ -24,8 +27,17 @@ export default function ToolShell({ icon: Icon, title, description, actions, chi
           <h1 className="shrink-0 text-lg font-bold tracking-tight text-zinc-900">{title}</h1>
           <p className="text-xs text-zinc-400 sm:truncate sm:text-sm">{description}</p>
         </div>
-        {actions && (
+        {(BACK_URL || actions) && (
           <div className="flex max-w-full flex-wrap items-center gap-2 overflow-x-auto max-sm:w-full">
+            {BACK_URL && (
+              <a
+                href={BACK_URL}
+                className="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-500 transition-colors duration-200 hover:border-zinc-300 hover:text-zinc-700"
+              >
+                <ArrowLeft size={13} />
+                返回站点
+              </a>
+            )}
             {actions}
           </div>
         )}

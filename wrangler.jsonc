@@ -1,0 +1,12 @@
+{
+  // Cloudflare Workers — Static Assets only（纯静态托管，无 SSR、无绑定）
+  // Docs: https://developers.cloudflare.com/workers/static-assets/
+  // Deploy:  npm run deploy:workers
+  //
+  // Cloudflare Pages 走同一份 dist，命令见 npm run deploy:pages。
+  "name": "typography-site",
+  "compatibility_date": "2026-03-02",
+  "assets": {
+    "directory": "./dist"
+  }
+}
