@@ -1,0 +1,6 @@
+# 只产出一份产物（文件在站点根目录），应用通过 base=/typography 构建，
+# 因此页面里的资源引用都是 /typography/…。这里用 200 重写把该前缀映射回根路径：
+#   /typography/            → /index.html
+#   /typography/_astro/x.js → /_astro/x.js
+# URL 保持不变，所以既能被父站 gantz.host/typography 反代，也能在子域直接访问。
+/typography/*  /:splat  200

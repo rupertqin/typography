@@ -1,0 +1,6 @@
+# Cloudflare 静态响应头（Pages 通道生效）
+/typography/_astro/*
+  Cache-Control: public, max-age=31556952, immutable
+
+/typography/*
+  X-Content-Type-Options: nosniff

@@ -12,9 +12,7 @@
     "check:themes": "node scripts/check-themes.mjs",
     "smoke": "node scripts/render-smoke.mjs && node scripts/app-smoke.mjs",
     "verify": "npm run extract:themes && npm run check:themes && npm run smoke && npm run build",
-    "build:embedded": "BASE_PATH=/typography PUBLIC_BACK_URL=https://gantz.host astro build --outDir dist/typography",
-    "deploy:workers": "npm run build && wrangler deploy",
-    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name=typography-site --branch=main --commit-dirty=true"
+    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name=typography --branch=main --commit-dirty=true"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.1",

@@ -26,27 +26,25 @@ npm run verify         # 重新切片 + 上面两项 + 构建
 
 ## 部署
 
-应用恒挂在 `/` 路由，不同发布目标只差一个 `BASE_PATH`（构建期注入）：
+只产出一份产物，构建期把前缀固定为 `/typography`（`BASE_PATH`），两处入口同路径挂载：
 
-| 目标 | 构建方式 | 访问地址 |
+| 入口 | 地址 | 说明 |
 | --- | --- | --- |
-| Cloudflare 独立（base `/`） | `npm run build` | `https://typography-site.pages.dev` / `https://typography.gantz.host/` |
-| Cloudflare 内嵌（base `/typography`） | `BASE_PATH=/typography PUBLIC_BACK_URL=https://gantz.host npx astro build --outDir dist/typography` | 被父站 `gantz.host/typography` 反代 |
-| GitHub Pages 项目站点 | `BASE_PATH=/Typography SITE_URL=https://rupertqin.github.io/Typography npm run build` | `https://rupertqin.github.io/Typography/` |
+| 主入口（父站反代） | `https://gantz.host/typography/` | 父站 Worker 原样转发到 Pages 的同名路径 |
+| 辅入口（子域名） | `https://typography.gantz.host/`、`https://typography.pages.dev/` | 根路径直接可用，`public/_redirects` 用 200 重写把 `/typography/*` 映射回站点根目录 |
 
-- Cloudflare Pages 产物里同时包含两套：根目录（独立访问）与 `dist/typography/`（内嵌）。父站 Worker 只需原样转发 `/typography/*`，不用改写 HTML/CSS/JS。
-- 带 `BASE_PATH` 构建时，`_astro/`、`favicon.svg` 等资源前缀自动带上该路径，页面不会出现 `/typography/typography` 这类重复路由。
-- `PUBLIC_BACK_URL` 存在时工具头部渲染「返回站点」入口，用于被父站反代的场景；独立访问不显示。
-- 自定义域 `typography.gantz.host` 绑定在 Cloudflare Pages 项目的 Custom domains 里（DNS 由 CF 自动加 CNAME），需在控制台点一次，CI 无法代劳。
-- 本地手动发布：`npm run deploy:workers` / `npm run deploy:pages`（需已登录 wrangler）。
+- 页面里的资源引用是 `/typography/_astro/…`，因此无论在哪个入口，浏览器请求的都是同一个路径；`_redirects` 只做路径映射，不改 HTML，也不产生第二份产物。
+- `PUBLIC_BACK_URL` 存在且当前路径以 `/typography` 开头时，工具头部渲染「返回站点」；子域根路径下不显示。
+- 自定义域 `typography.gantz.host` 在 Cloudflare Pages 项目的 Custom domains 里绑定（DNS 由 CF 自动添加），需在控制台点一次，CI 无法代劳。
+- 本地手动发布：`npm run deploy:pages`（需已登录 wrangler；部署前请用 `BASE_PATH=/typography npm run build` 构建）。
 
 ### CI
 
-- `.github/workflows/deploy-pages.yml`：推 `main` 自动发布 GitHub Pages。仓库 Settings → Pages → Source 需选 **GitHub Actions**。
-- `.github/workflows/deploy-cloudflare.yml`：推 `main` 一次性构建两套产物并发布 Workers（`typography-site`）与 Pages 两份，需要仓库 Secrets：
-  - `CLOUDFLARE_API_TOKEN`：Workers Scripts:Edit、Cloudflare Pages:Edit、Account Settings:Read
+- `.github/workflows/deploy-cloudflare.yml`：推 `main` 构建单一产物并发布到 Cloudflare Pages 项目 `typography`（只发 Pages，不建同名 Worker，避免抢占 `typography.pages.dev`）。需要仓库 Secrets：
+  - `CLOUDFLARE_API_TOKEN`：Cloudflare Pages:Edit、Account Settings:Read
   - `CLOUDFLARE_ACCOUNT_ID`
 - 父站与本仓库已解耦：父站 Worker 运行时反代，本仓库发布后不需要触发父站重建。
+- 发布统一走 GitHub Actions（push `main` 即触发），**不要**同时在 Cloudflare 控制台给该项目连 Git：两套构建会互相覆盖，且 CF 侧默认 build command 不带 `BASE_PATH=/typography`，反代时会拿不到资源。
 
 ## 目录
 
@@ -69,8 +67,9 @@ src/
 scripts/
   extract-themes.mjs         从 reference/Typeset.chunk.js 切出主题套件
 reference/                   逆向证据与偏移说明（不参与构建）
-.github/workflows/           独立发布：deploy-pages.yml（GitHub Pages）、deploy-cloudflare.yml（Workers + Pages）
-wrangler.jsonc               Cloudflare Workers 静态资源配置（typography-site）
+.github/workflows/           发布：deploy-cloudflare.yml（GitHub Actions → Cloudflare Pages）
+public/_redirects            Pages 侧 200 重写：/typography/* → 站点根目录
+public/_headers              /typography/_astro/* 长缓存
 astro.config.mjs             BASE_PATH / SITE_URL 控制部署前缀
 ```
 
