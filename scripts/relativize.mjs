@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 /**
- * 把 dist 里 HTML 的根绝对引用改成相对引用，让同一份产物可以挂在任意路径：
- *   https://typography.gantz.host/           → ./_astro/x.js  → /_astro/x.js
- *   https://gantz.host/typography/           → /typography/_astro/x.js
- *   https://rupertqin.github.io/Typography/  → /Typography/_astro/x.js
+ * 把 dist 里 HTML 的根绝对引用改成相对引用，让同一份产物可以挂在任意路径
+ * （子域名根 → /_astro/x.js；/typography/ → /typography/_astro/x.js）。
  *
- * Astro 的 base 是构建期常量且会被规范成 `/./`（仍是根绝对），所以相对化只能
- * 放在构建之后做。只改属性值，不碰内联脚本里的字符串，避免误伤。
+ * Astro 的 base 会被规范成 `/./`（仍是根绝对），所以相对化只能放在构建之后做。
+ * 只改属性值，不碰内联脚本里的字符串。
  *
- * 前提：单 HTML 入口 + 无客户端路由。多页时相对深度要按页面层级算。
+ * 前提：单 HTML 入口 + 无客户端路由；多页时相对深度要按页面层级算。
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

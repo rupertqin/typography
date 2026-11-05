@@ -11,11 +11,8 @@ interface ToolShellProps {
 }
 
 /**
- * 同一份产物可挂在任意路径：子域名根（typography.gantz.host）、父站子路由
- * （/typography/）、GitHub Pages 项目站点（/Typography/）。路径前缀不写死：
- * 当前不在站点根，就说明被上一级站点挂载了，返回地址取上一级目录
- * （/typography/ → 站根，/Typography/ → rupertqin.github.io 根）。
- * PUBLIC_BACK_URL 可显式覆盖。
+ * 同一份产物可挂在子域名根或任意子路径。不在站点根就说明被上一级站点挂载了，
+ * 「返回站点」取上一级目录；PUBLIC_BACK_URL 可显式覆盖。
  */
 const BACK_URL = import.meta.env.PUBLIC_BACK_URL as string | undefined;
 

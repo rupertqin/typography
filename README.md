@@ -25,29 +25,13 @@ npm run smoke          # 用 jsdom 跑完整渲染管线 + 配色重映射（不
 npm run verify         # 重新切片 + 上面两项 + 构建
 ```
 
-## 部署
+## 发布
 
-产物是「挂哪都行」的：`astro build` 只用 base `/`，构建后 `scripts/relativize.mjs` 把 HTML 里的引用改成相对路径（`./_astro/…`）。所以同一份 `dist` 既能挂在子域名根，也能挂在任意子路由下，不需要为不同入口分别构建：
+推 `main` 触发 GitHub Actions（`.github/workflows/deploy.yml`）：一次构建，同一份 `dist` 同时发布到 Cloudflare Pages 与 GitHub Pages 项目站点。
 
-| 入口 | 地址 | 说明 |
-| --- | --- | --- |
-| 主入口（父站反代） | `https://gantz.host/typography/` | 父站 Worker 原样转发到 Pages 的同名路径 |
-| 辅入口（子域名） | `https://typography.gantz.host/`、`https://typography-e50.pages.dev/` | 根路径直接可用 |
-| GitHub Pages 项目站点 | `https://rupertqin.github.io/Typography/`（小写 `/typography/` 同样可访问） | 项目站点天然把 `/Typography/` 映射到仓库根，不需要任何重写 |
-
-- 相对路径让挂载点与构建彻底解耦：`/typography/` 下 `./_astro/x.js` 解析成 `/typography/_astro/x.js`，`/Typography/` 下解析成 `/Typography/_astro/x.js`，根路径下解析成 `/_astro/x.js`。
-- Cloudflare 上的文件在站点根，但访客 URL 带 `/typography` 前缀，所以 `public/_redirects` 仍要做两件事：`/typography` → `/typography/` **301**（少了尾斜杠，`./_astro/x.js` 会相对站点根解析成 `/_astro/x.js`），`/typography/*` → `/:splat` **200** 重写到根目录的真实文件。
-- 工具头部的「返回站点」按当前路径推导：不在站点根就显示，地址取上一级目录（`/typography/` → 父站根，`/Typography/` → `rupertqin.github.io` 根）；需要固定地址时用 `PUBLIC_BACK_URL` 覆盖。
-- 自定义域 `typography.gantz.host` 在 Cloudflare Pages 项目的 Custom domains 里绑定（DNS 由 CF 自动添加），需在控制台点一次，CI 无法代劳。
-- 本地手动发布：`npm run deploy:pages`（需已登录 wrangler；`npm run build` 产出的就是可直接发布的相对路径产物）。
-
-### CI
-
-- `.github/workflows/deploy.yml`：推 `main` 触发**一次构建**。`build` job 产出 `dist`（含「无根绝对引用」校验），两个部署 job 并行消费同一份 artifact：
-  - `deploy-cloudflare` → Cloudflare Pages 项目 `typography`，实际子域是 `typography-e50.pages.dev`（`typography.pages.dev` 被其他账号全局占名，CF 自动加了后缀）。只发 Pages、不建同名 Worker，避免再抢这个子域。需要 Secrets `CLOUDFLARE_API_TOKEN`（Pages:Edit、Account Settings:Read）与 `CLOUDFLARE_ACCOUNT_ID`。
-  - `deploy-pages` → GitHub Pages 项目站点（`/Typography/`）。仓库 Settings → Pages → Source 需为 **GitHub Actions**。
-- 父站与本仓库已解耦：父站 Worker 运行时反代，本仓库发布后不需要触发父站重建。
-- 发布统一走 GitHub Actions（push `main` 即触发），**不要**同时在 Cloudflare 控制台给该项目连 Git：两套构建会互相覆盖。
+- Secrets：`CLOUDFLARE_API_TOKEN`（Pages:Edit、Account Settings:Read）、`CLOUDFLARE_ACCOUNT_ID`
+- GitHub Pages 需仓库 Settings → Pages → Source 设为 **GitHub Actions**
+- 项目站点路径 = 仓库名（大小写敏感），需与主站同名目录一致
 
 ## 目录
 
@@ -81,4 +65,5 @@ astro.config.mjs             dev 用 BASE_PATH 注册路由；构建一律 base 
 
 - 主题数据来自 `reference/` 里构建产物的原样切片：`decor` 里含函数，JSON 化会丢失行为，因此生成文件不可读是预期结果。
 - 复制结果是纯内联样式 HTML，不含 class / data-\* 标记，粘贴到公众号后台即生效。
+- `npm run build` 产出的 HTML 用相对路径引用资源（`./_astro/…`），同一份 `dist` 可以挂在任意路径下，不需要按挂载点重新构建。
 - 公众号不接受外链图片：`![alt](url)` 会渲染成虚线占位框，粘贴后由使用者在占位处补图。

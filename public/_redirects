@@ -1,11 +1,8 @@
-# 产物是「挂哪都行」的相对路径版本（HTML 里是 ./_astro/…），文件都放在站点根目录。
-# Cloudflare 上访客 URL 带 /typography 前缀（父站反代 / 子域访问），所以用 200 重写
-# 把该前缀映射回根路径：
+# 子域名根路径直接可用，不需要重写。下面两条只为兼容旧链接
+# （父站反代时期的 /typography/… 地址）：
 #   /typography/            → /index.html
 #   /typography/_astro/x.js → /_astro/x.js
-# URL 保持不变，页内相对引用就会解析到 /typography/…，再由这里映射到真实文件。
-#
-# 无尾斜杠必须补斜杠：否则 ./_astro/x.js 会相对 / 解析成 /_astro/x.js。
+# 无尾斜杠必须补斜杠，否则 ./_astro/x.js 会相对 / 解析成 /_astro/x.js。
 /typography  /typography/  301
 
 /typography/*  /:splat  200

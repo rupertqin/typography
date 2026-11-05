@@ -1,16 +1,8 @@
 name: Deploy
 
-# 一次构建，两处发布。
-#
-# 产物与挂载路径无关：astro build 用 base `/`，随后 scripts/relativize.mjs 把
-# HTML 里的根绝对引用改成 `./_astro/…`，因此同一份 dist 可以同时服务：
-#   父站反代          https://gantz.host/typography/
-#   子域名            https://typography.gantz.host/ 、https://typography-e50.pages.dev/
-#   GitHub Pages 项目 https://rupertqin.github.io/Typography/
-#
-# Cloudflare 上的文件放在站点根，但访客 URL 带 /typography 前缀，所以仍需
-# public/_redirects 做 200 重写（见该文件注释）。GH Pages 项目站点天然把
-# /Typography/ 映射到仓库根，不需要任何重写。
+# 一次构建，两处发布：Cloudflare Pages 与 GitHub Pages 项目站点。
+# 产物是相对路径的（见 scripts/relativize.mjs），同一份 dist 挂两个路径都能用。
+# 项目站点路径 = 仓库名（大小写敏感），需与主站 public/typography/ 同名。
 #
 # 需要的仓库 Secrets：
 #   CLOUDFLARE_API_TOKEN  —— 权限：Cloudflare Pages:Edit、Account Settings:Read
