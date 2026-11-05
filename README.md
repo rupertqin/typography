@@ -1,68 +1,64 @@
-# Typography · 公众号排版风格
+# TYPOGRAPHY
 
-公众号排版风格（Typography）是一个公众号排版工具。用 Astro + React 岛：左边写 Markdown，右边实时预览
-排版效果，35 套主题任意切换，可微调主色与单个部件颜色，一键复制带内联样式的正文，
-草稿自动保存在本机。
+用 Markdown 写公众号，复制即排好版。
 
-## 运行
+35 套主题，标题、引用、分割线各有装饰。草稿只留在你自己的浏览器里，不用注册，也不上传。
+
+在线使用：**https://rupertqin.github.io/typography/**
+
+## 功能
+
+**写作**
+
+- 左边写 Markdown，右边就是排好版的样子；滚动时两边一起走。
+- 工具栏一点就插入小标题、引用、代码块、图片位置、分割线；选中文字按 `⌘/Ctrl + B` 直接加粗。
+- 撤销、重做最多 100 步，手滑清空或换掉示例也能撤回。
+- 粘贴截图会自动变成图片位置，不用手动敲语法。
+- 编辑区底部随时显示字数和预计阅读时长。
+
+**主题**
+
+- 35 套主题：简约、书香、报纸、杂志、手账、终端、霓虹、水墨、卡片流……
+- 标题、引用、分割线、列表符号都是主题的一部分：方格本是双线夹字，终端是 `$` 提示符加光标，朱印带色块序号，时间轴带圆点，清单带 `STEP 01` 标签。
+- 按文章类型挑：技术编程、干货教程、资讯观点、商业职场、情感随笔、读书文艺、生活美食、活动节日，每类还标了可用套数。
+- 选不下来就随机换一个，换完不满意能撤回上一套。
+- 主题列表里的卡是真实排版缩出来的小样，不是截图——点开之前就知道长什么样。
+
+**配色与字体**
+
+- 换一个主色，标题、引用、加粗、分割线一起换成同一色系；也能只改其中一处。
+- 11 种预设色，或者填自己的品牌色值。
+- 换主题会保留你调过的颜色。配色面板可以拖到一边，边调边看。
+- 字号五档、字体八种（黑体、宋体、楷体，以及苹果系统的细体），预览里看到的比例就是复制出去的比例。
+- 只想看整篇结构时，把预览缩到 50%。
+
+**复制**
+
+- 一键复制，粘到公众号后台就是预览里的样子，不用再逐段补样式。
+- 复制出来是干净的富文本：不带多余标记，也不引用任何外部资源。
+- 代码块的缩进和换行不会塌，长表格在手机上能横向滑动。
+- 公众号不收外链图，图片位置会留成占位框，粘过去在后台补图，不会出现打不开的破图。
+
+**本地优先**
+
+- 草稿、主题、配色都存在浏览器里，关掉再打开还在。
+- 不需要注册登录，文章不上传到任何服务器。
+
+**Markdown**
+
+- 支持 GFM、表格、16 种语言代码高亮、上标下标、脚注、删除线。
+- 脚注按引用顺序编号列在文末；正文里点不了的外链会把地址写进脚注。
+
+### 本地运行
 
 ```bash
 npm install
 npm run dev      # http://localhost:4321/
 npm run build    # 静态产物在 dist/
 npm run preview
-
-# 与父站联调：父站 dev 的 /typography 会代理到本机 4322（dev 需要 BASE_PATH 注册路由，
-# build 不需要：产物是相对路径的，挂哪都行）
-BASE_PATH=/typography npm run dev -- --port 4322
-```
-
-## 校验
-
-```bash
-npm run check:themes   # 35 套主题结构、顺序、装饰函数可调用
-npm run smoke          # 用 jsdom 跑完整渲染管线 + 配色重映射（不访问网络）
-npm run verify         # 重新切片 + 上面两项 + 构建
-```
-
-## 发布
-
-推 `main` 触发 GitHub Actions（`.github/workflows/deploy.yml`）：一次构建，同一份 `dist` 同时发布到 Cloudflare Pages 与 GitHub Pages 项目站点。
-
-- Secrets：`CLOUDFLARE_API_TOKEN`（Pages:Edit、Account Settings:Read）、`CLOUDFLARE_ACCOUNT_ID`
-- GitHub Pages 需仓库 Settings → Pages → Source 设为 **GitHub Actions**
-- 项目站点路径 = 仓库名（大小写敏感），需与主站同名目录一致
-
-## 目录
-
-```
-src/
-  pages/index.astro          应用页（client:only 挂载 React 岛）
-  components/
-    TypographyApp.tsx        组合根：渲染、复制按钮三态、双栏编排
-    shell/                   ToolShell（渐变头）+ ToolPanel（白卡）
-    editor/EditorPanel.tsx   编辑器：插入工具栏、撤销、粘贴图片、字数与滚动同步
-    preview/PreviewPanel.tsx 预览：420px 手机画布、缩放档位
-    theme/                   主题选择器 / 下拉面板 / 迷你预览卡
-    color/ColorPanel.tsx     配色浮层：主色、10 个部件、拖拽归位
-  lib/
-    themes.generated.js      由原包切片生成（勿手改）
-    markdown.ts              marked + 上下标/脚注/删除线扩展 + 代码高亮
-    render.ts                主题样式与装饰注入管线
-    recolor.ts               HSL 保亮度配色重映射
-    store.ts                 zustand persist（key: typography）
-scripts/
-  extract-themes.mjs         从 reference/Typeset.chunk.js 切出主题套件
-  relativize.mjs             构建后把 HTML 引用改成相对路径（产物与挂载点无关）
-reference/                   逆向证据与偏移说明（不参与构建）
-.github/workflows/deploy.yml 一次构建，发布到 CF Pages + GH Pages
-public/_headers              /_astro/* 长缓存（CF Pages 生效，GH Pages 忽略）
-astro.config.mjs             dev 用 BASE_PATH 注册路由；构建一律 base /
 ```
 
 ## 说明
 
-- 主题数据来自 `reference/` 里构建产物的原样切片：`decor` 里含函数，JSON 化会丢失行为，因此生成文件不可读是预期结果。
-- 复制结果是纯内联样式 HTML，不含 class / data-\* 标记，粘贴到公众号后台即生效。
-- `npm run build` 产出的 HTML 用相对路径引用资源（`./_astro/…`），同一份 `dist` 可以挂在任意路径下，不需要按挂载点重新构建。
-- 公众号不接受外链图片：`![alt](url)` 会渲染成虚线占位框，粘贴后由使用者在占位处补图。
+- 公众号会丢弃 class，样式全部写成内联；内容外面再包一层容器，粘过去才不会只剩裸段落。
+- 字体只能声明读者设备自带的系统字体，所以给的是字体栈而不是 webfont；细体和极细用字重表达，比小众字体名更容易通过公众号清洗。
