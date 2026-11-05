@@ -60,7 +60,6 @@ jobs:
           set -euo pipefail
           test -f dist/index.html
           test -f dist/favicon.svg
-          test -f dist/_redirects
           test -f dist/_headers
           test -n "$(find dist/_astro -name '*.js' -print -quit)"
 

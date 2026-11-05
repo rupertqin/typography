@@ -1,6 +1,8 @@
-# Cloudflare 静态响应头（Pages 通道生效）
-/typography/_astro/*
+# Cloudflare Pages 静态响应头（GitHub Pages 忽略此文件）
+
+# 产物资源带内容哈希，可长缓存
+/_astro/*
   Cache-Control: public, max-age=31556952, immutable
 
-/typography/*
+/*
   X-Content-Type-Options: nosniff

@@ -1,8 +1,0 @@
-# 子域名根路径直接可用，不需要重写。下面两条只为兼容旧链接
-# （父站反代时期的 /typography/… 地址）：
-#   /typography/            → /index.html
-#   /typography/_astro/x.js → /_astro/x.js
-# 无尾斜杠必须补斜杠，否则 ./_astro/x.js 会相对 / 解析成 /_astro/x.js。
-/typography  /typography/  301
-
-/typography/*  /:splat  200

@@ -56,8 +56,7 @@ scripts/
   relativize.mjs             构建后把 HTML 引用改成相对路径（产物与挂载点无关）
 reference/                   逆向证据与偏移说明（不参与构建）
 .github/workflows/deploy.yml 一次构建，发布到 CF Pages + GH Pages
-public/_redirects            CF 侧：/typography → 带斜杠 301、/typography/* → 根路径 200
-public/_headers              /typography/_astro/* 长缓存
+public/_headers              /_astro/* 长缓存（CF Pages 生效，GH Pages 忽略）
 astro.config.mjs             dev 用 BASE_PATH 注册路由；构建一律 base /
 ```
 
