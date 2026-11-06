@@ -226,7 +226,7 @@ if (!/background:rgba\(22,119,255/.test(quoteDoc.querySelector('blockquote')?.ge
 }
 
 // 6) 代码配色：token 色写死进内联样式，pre 底色跟着换
-if (CODE_THEME_LIST.length < 60) problems.push(`代码配色只有 ${CODE_THEME_LIST.length} 套，生成脚本可能失效`);
+if (CODE_THEME_LIST.length < 60) problems.push(`代码配色只有 ${CODE_THEME_LIST.length} 套，配色表可能被改坏`);
 const darkCodeTheme = CODE_THEME_LIST.find((item) => item.id === 'atom-one-dark');
 if (!darkCodeTheme?.tokens.keyword) problems.push('atom-one-dark 缺少 keyword 调色板');
 const codeThemedDoc = parseHtml(

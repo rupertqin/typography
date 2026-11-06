@@ -51,7 +51,6 @@ jobs:
 
       - name: Theme checks + smoke
         run: |
-          npm run extract:themes
           npm run check:themes
           npm run smoke
 

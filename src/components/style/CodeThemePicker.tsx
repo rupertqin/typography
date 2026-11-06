@@ -1,10 +1,11 @@
 import { CODE_THEME_GROUPS, FOLLOW_THEME_CODE, findCodeTheme } from '../../lib/code-themes';
 import { getDecl } from '../../lib/render-helpers';
 import { useTypographyStore } from '../../lib/store';
-import type { Theme } from '../../lib/types';
+import type { Theme } from '../../lib/themes';
 
 const PREVIEW_TOKENS = ['keyword', 'title', 'string', 'comment'];
 
+/** 'color:#a6262a;' → '#a6262a'（跟随主题时主题自带的 hljs 声明也用它解析） */
 function colorOf(style: string | undefined): string {
   if (!style) return '';
   return /color:\s*([^;]+)/.exec(style)?.[1]?.trim() ?? '';
@@ -20,11 +21,8 @@ interface Swatch {
 function resolveSwatch(theme: Theme, codeThemeId: string): Swatch {
   const picked = findCodeTheme(codeThemeId);
   if (picked) {
-    return {
-      background: picked.background || '#f6f8fa',
-      colors: PREVIEW_TOKENS.map((token) => colorOf(picked.tokens[token])).filter(Boolean),
-      label: picked.label,
-    };
+    const { background, colors } = picked.swatch(PREVIEW_TOKENS);
+    return { background: background || '#f6f8fa', colors, label: picked.label };
   }
   return {
     background: getDecl(theme.styles.pre, 'background') ?? '#f6f8fa',

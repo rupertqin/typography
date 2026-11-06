@@ -3,7 +3,8 @@ import { Undo2 } from 'lucide-react';
 import { MAIN_COLOR_PRESETS, PART_COLOR_PRESETS } from '../../lib/constants';
 import { availableColorParts, isHexColor } from '../../lib/recolor';
 import { useTypographyStore } from '../../lib/store';
-import type { ColorPreset, Theme } from '../../lib/types';
+import type { ColorPreset } from '../../lib/types';
+import type { Theme } from '../../lib/themes';
 
 function sameColor(left: string, right: string) {
   return left.toLowerCase() === right.toLowerCase();

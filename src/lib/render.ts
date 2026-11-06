@@ -21,7 +21,8 @@ import {
   scaleFontSizes,
   stripFontFamilyQuotes,
 } from './render-helpers';
-import type { ColorOverrides, Theme, ThemeParams } from './types';
+import type { ColorOverrides, ThemeParams } from './types';
+import type { Theme } from './themes/theme';
 
 export interface RenderOptions {
   /** 配色重映射 */
@@ -66,7 +67,7 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
 
   // 代码高亮 class → 内联色板（公众号会丢掉 class）。
   // 选了代码配色就用它，否则回落到主题自带的 hljs 调色板。
-  const codePalette = resolveCodeTheme(options.codeTheme, theme);
+  const codePalette = resolveCodeTheme(options.codeTheme);
   const codeTokens = codePalette?.tokens ?? theme.hljs;
   root.querySelectorAll('[class*="hljs-"]').forEach((node) => {
     const token = Array.from(node.classList).find((name) => name.startsWith('hljs-'));

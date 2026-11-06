@@ -1,12 +1,13 @@
 /**
- * 从 md.doocs（https://md.doocs.org）移植的三套主题。
+ * md.doocs 三套主题（md-classic / md-grace / md-simple）共用的样式底子。
  *
  * 它那边主题是「CSS 文件 + #output 作用域 + 复制时 juice 内联」，这里翻译成
  * 本项目的逐元素内联样式：主色统一用 --md-primary-color 的默认值 #0F4C81，
  * 所有与主色相关的 rgba()/色值都写成同一个蓝，改主色时才能被 recolor 正确重映射。
  * 代码块沿用 doocs 默认的 github-dark-dimmed 配色。
  */
-import { CODE_THEMES_BY_ID } from './code-themes.generated.js';
+import { CODE_THEMES_BY_ID } from '../code-themes';
+import type { ThemeStyles } from '../types';
 
 const ACCENT = '#0f4c81';
 const BODY = '#333333';
@@ -20,7 +21,7 @@ const CODE_FG = codeTheme?.foreground ?? '#adbac7';
 const HLJS = codeTheme?.tokens ?? {};
 
 /** 三套主题共用的底子：正文、链接、代码块、表格、脚注 */
-const BASE = {
+const BASE: ThemeStyles = {
   wrapper: `font-family:${FONT};font-size:15px;line-height:1.75;color:${BODY};letter-spacing:0.06em;word-break:break-word;`,
   p: 'margin:1.5em 0;',
   em: 'font-style:italic;',
@@ -47,7 +48,7 @@ const BASE = {
 
 const H4 = `margin:1.2em 0 0.5em;font-size:15px;font-weight:bold;line-height:1.5;color:${ACCENT};`;
 
-const CLASSIC = {
+const CLASSIC: ThemeStyles = {
   ...BASE,
   // 一级标题：下划线夹字，靠 display:table 让边框只包住文字
   h1: `display:table;margin:2em auto 1em;padding:0 1em;border-bottom:2px solid ${ACCENT};font-size:19px;font-weight:bold;line-height:1.6;color:#1f2937;text-align:center;`,
@@ -64,7 +65,7 @@ const CLASSIC = {
   hr: 'margin:2em 0;height:0;border:0;border-top:2px solid rgba(0,0,0,0.1);',
 };
 
-const GRACE = {
+const GRACE: ThemeStyles = {
   ...CLASSIC,
   h1: `display:table;margin:2em auto 1em;padding:0.4em 1em;border-bottom:2px solid ${ACCENT};font-size:19px;font-weight:bold;line-height:1.6;color:#1f2937;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.06);`,
   h2: `display:table;margin:2.4em auto 1.2em;padding:0.3em 1em;background:${ACCENT};border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);font-size:18px;font-weight:bold;line-height:1.6;color:#fff;text-align:center;`,
@@ -79,7 +80,7 @@ const GRACE = {
   td: 'padding:0.5em 1em;border:0;border-top:1px solid rgba(0,0,0,0.08);',
 };
 
-const SIMPLE = {
+const SIMPLE: ThemeStyles = {
   ...CLASSIC,
   h1: 'margin:1.8em 0 1em;padding:0.4em 1em;text-shadow:1px 1px 3px rgba(0,0,0,0.05);font-size:20px;font-weight:bold;line-height:1.6;color:#1f2937;',
   h2: `margin:2em 0 1.1em;padding:0.3em 1.2em;border-radius:8px 24px 8px 24px;box-shadow:0 2px 6px rgba(0,0,0,0.06);background:${ACCENT};font-size:18px;font-weight:bold;line-height:1.6;color:#fff;`,
@@ -90,39 +91,17 @@ const SIMPLE = {
   hr: 'margin:2em 0;height:1px;border:0;background:linear-gradient(to right,rgba(0,0,0,0),rgba(0,0,0,0.18),rgba(0,0,0,0));',
 };
 
-/**
- * doocs 的三套主题：经典（default）、优雅（grace）、清爽（simple，避免与「简约」重名）。
- * @type {import('./types').Theme[]}
- */
-export const MD_THEMES = [
-  {
-    id: 'md-classic',
-    name: '经典',
-    accent: ACCENT,
-    tags: ['news', 'business'],
-    code: 'dark',
-    styles: CLASSIC,
-    decor: {},
-    hljs: HLJS,
-  },
-  {
-    id: 'md-grace',
-    name: '优雅',
-    accent: ACCENT,
-    tags: ['culture', 'emotion'],
-    code: 'dark',
-    styles: GRACE,
-    decor: {},
-    hljs: HLJS,
-  },
-  {
-    id: 'md-simple',
-    name: '清爽',
-    accent: ACCENT,
-    tags: ['tech', 'tutorial'],
-    code: 'dark',
-    styles: SIMPLE,
-    decor: {},
-    hljs: HLJS,
-  },
-];
+/** 三套 md 主题共用的主色 */
+export const MD_ACCENT = ACCENT;
+
+/** doocs 默认的 github-dark-dimmed 代码配色（token → 内联声明） */
+export const MD_HLJS: Record<string, string> = HLJS as unknown as Record<string, string>;
+
+/** 经典（default）：BASE 上补标题、引用、列表与表格 */
+export const MD_CLASSIC_STYLES: ThemeStyles = CLASSIC;
+
+/** 优雅（grace）：在经典之上做圆角卡片化 */
+export const MD_GRACE_STYLES: ThemeStyles = GRACE;
+
+/** 清爽（simple）：在经典之上把标题做成右侧大圆角 */
+export const MD_SIMPLE_STYLES: ThemeStyles = SIMPLE;

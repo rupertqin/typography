@@ -3,7 +3,7 @@ import { Eye } from 'lucide-react';
 import { FONT_FAMILIES, FONT_SCALES, ZOOM_LEVELS } from '../../lib/constants';
 import { isHexColor } from '../../lib/recolor';
 import { useTypographyStore } from '../../lib/store';
-import type { Theme } from '../../lib/types';
+import type { Theme } from '../../lib/themes';
 import { useMermaidHydration } from '../../lib/useMermaidHydration';
 import ToolPanel from '../shell/ToolPanel';
 import ThemePicker from '../theme/ThemePicker';

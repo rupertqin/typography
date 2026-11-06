@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef } from 'react';
 import { ARTICLE_TYPES, NEW_THEME_IDS } from '../../lib/constants';
-import type { ArticleType, Theme } from '../../lib/types';
+import type { ArticleType } from '../../lib/types';
+import type { Theme } from '../../lib/themes';
 import ThemeCard from './ThemeCard';
 
 interface ThemeMenuProps {
-  themes: Theme[];
+  themes: readonly Theme[];
   allCount: number;
   activeTheme: Theme;
   articleType: string;

@@ -23,33 +23,9 @@ export interface ThemeDecor {
   [key: string]: unknown;
 }
 
-export interface Theme {
-  id: string;
-  name: string;
-  accent: string;
-  tags: string[];
-  font?: string;
-  page?: string;
-  code?: 'light' | 'dark';
-  styles: ThemeStyles;
-  decor: ThemeDecor;
-  hljs: Record<string, string>;
-}
-
 export interface ColorOverrides {
   main: string;
   parts: Record<string, string>;
-}
-
-/** 一套代码配色（构建期从 highlight.js/styles 抽出，见 scripts/generate-code-themes.mjs） */
-export interface CodeThemeOption {
-  id: string;
-  label: string;
-  dark: boolean;
-  foreground: string;
-  background: string;
-  /** token 名（不含 hljs- 前缀）→ 内联声明，如 { keyword: 'color:#a6262a;' } */
-  tokens: Record<string, string>;
 }
 
 export type HeadingStyleType = 'default' | 'color-only' | 'border-bottom' | 'border-left';

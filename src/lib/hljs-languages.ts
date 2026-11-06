@@ -1,6 +1,6 @@
 import hljs from 'highlight.js/lib/core';
 
-import { HLJS_VERSION } from './code-themes.generated.js';
+import { HLJS_VERSION } from './code-themes';
 import bash from 'highlight.js/lib/languages/bash';
 import cpp from 'highlight.js/lib/languages/cpp';
 import csharp from 'highlight.js/lib/languages/csharp';

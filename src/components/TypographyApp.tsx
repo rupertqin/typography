@@ -12,10 +12,9 @@ import { isHexColor } from '../lib/recolor';
 import { renderMarkdown } from '../lib/render';
 import { selectThemeParams, useTypographyStore } from '../lib/store';
 import { THEMES } from '../lib/themes';
-import type { Theme } from '../lib/types';
 import { useIsMobile } from '../lib/useIsMobile';
 
-const ALL_THEMES = THEMES as Theme[];
+const ALL_THEMES = THEMES;
 
 type CopyStatus = 'idle' | 'ok' | 'fail' | 'waiting';
 

@@ -4,8 +4,8 @@ import { ChevronDown, ChevronLeft, ChevronRight, Palette, Shuffle, SlidersHorizo
 import { FOLLOW_THEME_CODE } from '../../lib/code-themes';
 import { ARTICLE_TYPES } from '../../lib/constants';
 import { THEMES } from '../../lib/themes';
+import type { Theme } from '../../lib/themes';
 import { useTypographyStore } from '../../lib/store';
-import type { Theme } from '../../lib/types';
 import ColorPanel from '../color/ColorPanel';
 import FloatingPanel from '../shell/FloatingPanel';
 import type { DragPosition } from '../shell/FloatingPanel';
@@ -15,7 +15,7 @@ import ThemeMenu from './ThemeMenu';
 const ICON_BUTTON =
   'shrink-0 rounded-lg bg-white p-1.5 text-zinc-500 ring-1 ring-zinc-200 transition-all hover:text-emerald-700 hover:ring-emerald-300';
 
-const ALL_THEMES = THEMES as Theme[];
+const ALL_THEMES = THEMES;
 
 export default function ThemePicker({ theme, inHeader = false }: { theme: Theme; inHeader?: boolean }) {
   const setThemeId = useTypographyStore((state) => state.setThemeId);

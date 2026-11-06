@@ -9,7 +9,8 @@ import {
 import { FOLLOW_THEME_CODE } from '../../lib/code-themes';
 import { isHexColor } from '../../lib/recolor';
 import { useTypographyStore } from '../../lib/store';
-import type { HeadingLevels, HeadingStyleType, Theme } from '../../lib/types';
+import type { HeadingLevels, HeadingStyleType } from '../../lib/types';
+import type { Theme } from '../../lib/themes';
 import Segmented from '../shell/Segmented';
 import CodeThemePicker from './CodeThemePicker';
 

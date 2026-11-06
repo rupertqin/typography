@@ -1,4 +1,5 @@
-import type { HeadingStyleType, Theme, ThemeCardDecor } from './types';
+import type { HeadingStyleType, ThemeCardDecor } from './types';
+import type { Theme } from './themes/theme';
 
 /** 标签 → 主题样式键（h5/h6 复用 h4 的样式） */
 export const STYLE_KEY_BY_TAG: Record<string, string> = {

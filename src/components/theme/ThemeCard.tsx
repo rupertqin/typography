@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { renderMarkdown } from '../../lib/render';
-import type { Theme } from '../../lib/types';
+import type { Theme } from '../../lib/themes';
 
 /** 主题卡里的小样：标题 + 正文 + 引用，足以看出装饰与配色差异 */
 const MINI_SAMPLE = `## 小标题样式

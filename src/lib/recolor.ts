@@ -1,5 +1,6 @@
 import { COLOR_PARTS } from './constants';
-import type { ColorOverrides, Theme } from './types';
+import type { ColorOverrides } from './types';
+import type { Theme } from './themes/theme';
 
 type RGB = [number, number, number];
 interface HSL {

@@ -66,8 +66,8 @@
 ```bash
 npm install
 npm run dev               # http://localhost:4321/
-npm run extract:code-themes   # 从 highlight.js 抽代码配色（改了依赖才需要跑）
-npm run verify            # 主题 + 代码配色 + 冒烟 + 构建
+npm run check:themes      # 校验主题与代码配色数据（改了这两份源就跑）
+npm run verify            # 主题校验 + 冒烟 + 构建
 npm run preview           # 预览 dist/
 ```
 
@@ -75,6 +75,9 @@ npm run preview           # 预览 dist/
 
 - 公众号会丢弃 class，样式全部写成内联；内容外面再包一层容器，粘过去才不会只剩裸段落。
 - 字体只能声明读者设备自带的系统字体，所以给的是字体栈而不是 webfont；细体和极细用字重表达，比小众字体名更容易通过公众号清洗。
-- 代码配色的 token 颜色在构建期从 `highlight.js/styles` 烘成内联声明（`src/lib/code-themes.generated.js`，不要手改），运行时不解析 CSS，复制产物天然全内联。
+- 主题是**一个主题一个文件**：`src/lib/themes/catalog/<主题 id>.ts`，都用 `new Theme({...})` 定义（只写与基础样式表不同的键）；公共机制（字体、调色板、装饰 helper、基础样式表、注册表）在 `src/lib/themes/` 里，顺序由 `src/lib/themes/index.ts` 决定。
+- 代码配色同理收在一个目录里：`src/lib/code-themes/catalog.ts` 是 82 套数据（一段一套），`theme.ts` 是 `CodeTheme` 类（构造期校验 token 形态并冻结实例，带 `swatch()/palette()`），`index.ts` 负责实例化与查表 API。
+- 改完主题或配色跑 `npm run check:themes`，它守住数量、顺序、31 个样式键、装饰函数与 token 完整性。
+- 代码配色的 token 颜色是内联声明而不是 class，运行时不解析 CSS，复制产物天然全内联。配色从 `highlight.js/styles` 一次性搬到源文件里，升级 highlight.js 不会自动跟进（`HLJS_VERSION` 与安装版本不一致时 `check:themes` 会提醒）。
 - 语法按需加载时会从 jsDelivr 取同版本语法（`highlight.js@<本地版本>/es/languages/*.min.js`）；只在预览期发生，复制出去的正文不带任何外链。
 - Mermaid 的 SVG 在复制时清洗：展开箭头/图标/渐变、`foreignObject` 里的 HTML 标签转成真正的 `<text>`、深灰墨色转 `currentColor`、`dominant-baseline` 转 `dy`、尺寸归一到公众号列宽（≤677px），最后去掉 `defs`/`id`/`class`。
