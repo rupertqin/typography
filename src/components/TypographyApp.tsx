@@ -3,7 +3,8 @@ import { Check, Copy, Newspaper } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import EditorPanel from './editor/EditorPanel';
 import PreviewPanel from './preview/PreviewPanel';
-import ToolShell from './shell/ToolShell';
+import AppHeader from './shell/AppHeader';
+import WorkbenchBar from './shell/WorkbenchBar';
 import { copyRichText } from '../lib/clipboard';
 import { buildCopyBundleWhenReady } from '../lib/copy-html';
 import { FONT_FAMILIES } from '../lib/constants';
@@ -12,6 +13,7 @@ import { isHexColor } from '../lib/recolor';
 import { renderMarkdown } from '../lib/render';
 import { selectThemeParams, useTypographyStore } from '../lib/store';
 import { THEMES } from '../lib/themes';
+import { useEditorController } from '../lib/useEditorController';
 import { useIsMobile } from '../lib/useIsMobile';
 
 const ALL_THEMES = THEMES;
@@ -27,6 +29,7 @@ export default function TypographyApp() {
   const fontFamilyId = useTypographyStore((state) => state.fontFamilyId);
 
   const isMobile = useIsMobile();
+  const editor = useEditorController();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLDivElement>(null);
   const statusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -97,8 +100,8 @@ export default function TypographyApp() {
   const Icon = status === 'ok' ? Check : Copy;
 
   return (
-    <div className="flex flex-col lg:h-full">
-      <ToolShell
+    <div className="flex flex-col lg:h-full lg:min-h-0">
+      <AppHeader
         icon={Newspaper}
         title="公众号排版风格"
         description="写 Markdown，一键复制带样式的正文，粘贴到公众号后台即可。"
@@ -113,23 +116,29 @@ export default function TypographyApp() {
             {label}
           </button>
         }
-      >
-        <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-2">
+      />
+
+      <WorkbenchBar editor={editor} theme={theme} isMobile={isMobile} />
+
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-col lg:w-1/2">
           <EditorPanel
+            editor={editor}
             previewRef={scrollerRef}
             isMobile={isMobile}
             accent={isHexColor(mainColor) ? mainColor : theme.accent}
           />
+        </div>
+        <div className="flex min-h-0 min-w-0 flex-col border-t border-zinc-200 lg:w-1/2 lg:border-l lg:border-t-0">
           <PreviewPanel
             theme={theme}
             html={html}
             hasContent={Boolean(deferredMarkdown.trim())}
-            isMobile={isMobile}
             scrollerRef={scrollerRef}
             articleRef={articleRef}
           />
         </div>
-      </ToolShell>
+      </div>
     </div>
   );
 }
