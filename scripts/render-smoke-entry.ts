@@ -196,6 +196,30 @@ for (const item of rawCases) {
   }
 }
 
+// LaTeX：四种写法都要吐占位（真正编译成 SVG 在浏览器里由 useMathHydration 完成）
+const mathCases: Array<{ name: string; md: string; display: boolean }> = [
+  { name: '行内 $…$', md: '质能方程 $E=mc^2$ 很简洁。', display: false },
+  { name: '块级 $$…$$', md: '$$\n\\int_0^1 x^2\\,dx\n$$', display: true },
+  { name: '行内 \\(…\\)', md: '勾股 \\(a^2+b^2=c^2\\) 成立。', display: false },
+  { name: '块级 \\[…\\]', md: '\\[\n\\frac{a}{b}\n\\]', display: true },
+];
+for (const item of mathCases) {
+  const out = parseMarkdown(item.md);
+  const isBlock = out.includes('md-math-block');
+  if (!out.includes('data-math=')) problems.push(`公式用例「${item.name}」没有生成占位：${out.slice(0, 120)}`);
+  if (isBlock !== item.display) problems.push(`公式用例「${item.name}」块级判定不对：${out.slice(0, 120)}`);
+  if (!out.includes('data-state="loading"')) problems.push(`公式用例「${item.name}」缺少渲染状态标记`);
+}
+// 公式源码要作为兜底文本留在占位里（MathJax 还没加载完时不能是一片空白）
+if (!parseMarkdown('质能方程 $E=mc^2$ 很简洁。').includes('$E=mc^2$')) {
+  problems.push('公式占位里没有保留源码兜底');
+}
+// 金额 / 行内代码里的 $ 不该被当成公式
+if (parseMarkdown('价格 $5 和 $10 元。').includes('data-math=')) problems.push('金额被误判成了公式');
+if (parseMarkdown('代码 `$x$` 里的美元符号不是公式').includes('data-math=')) {
+  problems.push('行内代码里的 $ 被误判成了公式');
+}
+
 for (const item of boldCases) {
   const html = parseMarkdown(item.md);
   const hasStrong = html.includes('<strong>');

@@ -133,7 +133,8 @@ export function sanitizeSvgForWeChat(svg: SVGSVGElement, maxWidth = WECHAT_MAX_W
 export function sanitizeMermaidSvgs(root: ParentNode, maxWidth = WECHAT_MAX_WIDTH): number {
   if (typeof document === 'undefined') return 0;
 
-  const svgs = Array.from(root.querySelectorAll('svg'));
+  // 排除公式：LaTeX 也是 <svg>，但它要贴着正文排，不能按图表的规则归一尺寸（见 sanitizeMathSvgs）
+  const svgs = Array.from(root.querySelectorAll('svg')).filter((svg) => !svg.closest('[data-math]'));
   if (svgs.length === 0) return 0;
 
   const host = document.createElement('div');
@@ -152,5 +153,39 @@ export function sanitizeMermaidSvgs(root: ParentNode, maxWidth = WECHAT_MAX_WIDT
     host.remove();
   }
 
+  return svgs.length;
+}
+
+/**
+ * 公式 SVG 的清洗（比图表轻量）。
+ *
+ * MathJax 用 `<defs>` + `<use href="#字形id">` 复用字形路径，微信把 defs 与 id 全丢掉后
+ * 公式会变成空白，所以只做两件事：把 use 展开成真实路径、清掉 defs/id/class。
+ * 尺寸保持 MathJax 给的 ex 单位（内联公式要跟着行高走），不套用图表的宽度归一。
+ */
+export function sanitizeMathSvgs(root: ParentNode): number {
+  const svgs = Array.from(root.querySelectorAll('svg')).filter((svg) => svg.closest('[data-math]'));
+  for (const svg of svgs) {
+    expandUseElements(svg as SVGSVGElement);
+    resolveUrlPaints(svg as SVGSVGElement);
+    svg.querySelectorAll('defs, style').forEach((node) => node.remove());
+    svg.querySelectorAll('*').forEach((node) => {
+      Array.from(node.attributes).forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        if (
+          name === 'id' ||
+          name === 'class' ||
+          name === 'href' ||
+          name === 'xlink:href' ||
+          name.startsWith('data-') ||
+          name.startsWith('aria-') ||
+          name === 'role' ||
+          name === 'tabindex'
+        ) {
+          node.removeAttribute(attr.name);
+        }
+      });
+    });
+  }
   return svgs.length;
 }

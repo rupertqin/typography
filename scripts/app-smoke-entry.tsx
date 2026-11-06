@@ -580,6 +580,24 @@ try {
     await wait(80);
     expect(editorLayer.scrollTop === 40, '高亮层没有跟随 textarea 滚动');
 
+    // 插入标签：光标落在插入内容末尾，视口停在原处（不能跳到文末）
+    textarea.scrollTop = 60;
+    textarea.setSelectionRange(0, 0);
+    const insertHeading = Array.from(mount.querySelectorAll('button')).find(
+      (btn) => btn.getAttribute('aria-label') === '小标题',
+    ) as HTMLButtonElement | undefined;
+    expect(Boolean(insertHeading), '工具条缺少「小标题」插入按钮');
+    insertHeading?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(140);
+    const insertedValue = useTypographyStore.getState().markdown;
+    expect(insertedValue.startsWith('## 小标题'), '插入后正文里没有小标题标签');
+    expect(
+      textarea.selectionStart === 0 && textarea.selectionEnd === '## 小标题'.length,
+      `光标没有停在插入内容末尾：${textarea.selectionStart}-${textarea.selectionEnd}`,
+    );
+    expect(textarea.scrollTop === 60, `插入后视口跳走了：${textarea.scrollTop}`);
+    expect(mount.ownerDocument.activeElement === textarea, '插入后焦点没有回到编辑区');
+
     textarea.dispatchEvent(new win.Event('compositionstart', { bubbles: true }));
     await wait(80);
     expect(textarea.className.includes('text-zinc-800'), '输入法组词时 textarea 仍未显字');
@@ -629,6 +647,22 @@ try {
   const boldHtml = articleRoot()?.innerHTML ?? '';
   expect(/<strong[^>]*>占了那个位置/.test(boldHtml), '标点紧贴加粗时预览没有加粗');
   expect(!boldHtml.includes('**'), '预览里残留了 ** 原文符号');
+
+  // LaTeX：占位在预览里被编译成内联 SVG（复制出去才是矢量图）
+  useTypographyStore
+    .getState()
+    .setMarkdown('质能方程 $E=mc^2$ 很简洁。\n\n$$\n\\frac{a}{b}\n$$');
+  await wait(500);
+  const mathNodes = Array.from(articleRoot()?.querySelectorAll<HTMLElement>('[data-math]') ?? []);
+  expect(mathNodes.length === 2, `公式占位数量不对：${mathNodes.length}`);
+  expect(
+    mathNodes.every((node) => node.getAttribute('data-state') === 'ready' && Boolean(node.querySelector('svg'))),
+    '公式没有编译成 SVG',
+  );
+  expect(
+    mathNodes.some((node) => (node.getAttribute('style') ?? '').includes('text-align:center')),
+    '块级公式没有居中',
+  );
 
   useTypographyStore.getState().setMarkdown('```mermaid\nflowchart LR\n  A[甲] --> B[乙]\n```\n\n正文段落。');
   await wait(220);

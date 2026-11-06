@@ -86,18 +86,29 @@ export function useEditorController(): EditorController {
     };
   };
 
+  /**
+   * 程序化编辑后的收尾：先定选区、再聚焦。
+   *
+   * 顺序很关键：textarea 的 value 刚被换掉时浏览器会把选区重置到文末，
+   * 此时若先 focus()，视口会一路滚到文章末尾，之后再 setSelectionRange 也拉不回来
+   * （这正是「插入标签后跳到页面末尾」的原因）。现在改成：
+   * 1. 先按新正文的长度夹住选区并写入；
+   * 2. 用 preventScroll 聚焦，别让浏览器自己找位置；
+   * 3. 把编辑前的 scrollTop 还原，视口停在原处。
+   */
+  const settleCaret = (selStart: number, selEnd: number, scrollTop: number) => {
+    const node = textareaRef.current;
+    if (!node) return;
+    const length = node.value.length;
+    node.setSelectionRange(clampCaret(selStart, length), clampCaret(selEnd, length));
+    node.focus({ preventScroll: true });
+    node.scrollTop = scrollTop;
+  };
+
   const restore = (snapshot: EditorSnapshot) => {
+    const scrollTop = textareaRef.current?.scrollTop ?? 0;
     setMarkdown(snapshot.value);
-    requestAnimationFrame(() => {
-      const node = textareaRef.current;
-      if (!node) return;
-      const length = snapshot.value.length;
-      node.focus();
-      node.setSelectionRange(
-        clampCaret(snapshot.selectionStart, length),
-        clampCaret(snapshot.selectionEnd, length),
-      );
-    });
+    requestAnimationFrame(() => settleCaret(snapshot.selectionStart, snapshot.selectionEnd, scrollTop));
   };
 
   const undo = () => {
@@ -155,13 +166,9 @@ export function useEditorController(): EditorController {
   };
 
   const replaceRange = (start: number, end: number, text: string, selStart: number, selEnd: number) => {
+    const scrollTop = textareaRef.current?.scrollTop ?? 0;
     commitEdit(markdown.slice(0, start) + text + markdown.slice(end), selStart, selEnd);
-    requestAnimationFrame(() => {
-      const node = textareaRef.current;
-      if (!node) return;
-      node.focus();
-      node.setSelectionRange(selStart, selEnd);
-    });
+    requestAnimationFrame(() => settleCaret(selStart, selEnd, scrollTop));
   };
 
   const insert = (action: InsertAction) => {

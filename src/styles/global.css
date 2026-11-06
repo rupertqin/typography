@@ -40,6 +40,38 @@
     line-height: 1.4;
   }
 
+  /* 公式：块级居中（内联样式也带了一份，复制到公众号后仍居中）；过宽时横向滚动 */
+  .md-math-block {
+    overflow-x: auto;
+    overflow-y: hidden;
+    line-height: 1.4;
+  }
+
+  .md-math-block svg,
+  .md-math svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .md-math[data-state='loading'],
+  .md-math[data-state='rendering'] {
+    color: #a1a1aa;
+    font-size: 13px;
+  }
+
+  .md-math-block[data-state='loading'],
+  .md-math-block[data-state='rendering'] {
+    color: #a1a1aa;
+    font-size: 13px;
+  }
+
+  .md-math[data-state='error'],
+  .md-math-block[data-state='error'] {
+    color: #dc2626;
+    font-size: 12px;
+    text-align: left;
+  }
+
   .md-mermaid[data-state='loading'],
   .md-mermaid[data-state='rendering'] {
     border-style: dashed;

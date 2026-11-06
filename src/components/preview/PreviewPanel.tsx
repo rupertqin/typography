@@ -7,6 +7,7 @@ import { isHexColor } from '../../lib/recolor';
 import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/themes';
 import { useMermaidHydration } from '../../lib/useMermaidHydration';
+import { useMathHydration } from '../../lib/useMathHydration';
 
 interface PreviewPanelProps {
   theme: Theme;
@@ -52,6 +53,8 @@ export default function PreviewPanel({
     fontFamily: bodyFontStack,
     revision: html,
   });
+  // 公式同理：占位落盘后编译成内联 SVG（MathJax 首次出现公式时才加载）
+  useMathHydration(articleRef, { revision: html });
 
   const paperWidth = previewDevice === 'mobile' ? 'w-[375px] max-w-full' : 'w-full max-w-[680px]';
 

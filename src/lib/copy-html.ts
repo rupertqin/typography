@@ -1,5 +1,6 @@
 import { MERMAID_ATTR, MERMAID_STATE_ATTR } from './mermaid';
-import { WECHAT_MAX_WIDTH, sanitizeMermaidSvgs } from './wechat-svg';
+import { MATH_ATTR } from './math-render';
+import { WECHAT_MAX_WIDTH, sanitizeMathSvgs, sanitizeMermaidSvgs } from './wechat-svg';
 
 const HIDDEN_HOST_STYLE = 'position:fixed;left:-99999px;top:0;visibility:hidden;pointer-events:none;z-index:-1';
 
@@ -21,8 +22,12 @@ function createSpacer(): HTMLElement {
 const MERMAID_WRAPPER_STYLE =
   'margin:1.2em 0;padding:12px 10px;border:1px solid #e9e9ec;border-radius:8px;background:#fff;text-align:center;';
 
+/**
+ * 异步产物：图表与公式。两者都用 `data-state` 表达进度（loading / rendering / ready / error），
+ * 复制前要等它们落地，否则粘出去的是占位框或 TeX 源码。
+ */
 function diagramNodes(root: ParentNode): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(`[${MERMAID_ATTR}]`));
+  return Array.from(root.querySelectorAll<HTMLElement>(`[${MERMAID_ATTR}], [${MATH_ATTR}]`));
 }
 
 function allReady(root: ParentNode): boolean {
@@ -102,7 +107,15 @@ export function buildCopyBundle(root: HTMLElement): CopyBundle {
   try {
     // 没画出来的图直接丢掉：留着「图表渲染中…」比缺一张图更糟
     diagramNodes(clone).forEach((node) => {
+      const isMermaid = node.hasAttribute(MERMAID_ATTR);
       const state = node.getAttribute(MERMAID_STATE_ATTR);
+
+      if (!isMermaid) {
+        // 公式：不管有没有就位都留着（源码/报错都比「内容凭空消失」好），并保持行内排版
+        if (state === 'ready') diagrams += 1;
+        return;
+      }
+
       if (state === 'ready') {
         diagrams += 1;
         node.setAttribute('style', MERMAID_WRAPPER_STYLE);
@@ -113,6 +126,7 @@ export function buildCopyBundle(root: HTMLElement): CopyBundle {
     });
 
     sanitizeMermaidSvgs(clone, WECHAT_MAX_WIDTH);
+    sanitizeMathSvgs(clone);
     stripAttributes(clone);
 
     // 纯文本要在插占位之前取，否则开头会多出两个不换行空格

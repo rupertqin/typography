@@ -22,10 +22,18 @@ export default defineConfig({
       host: '0.0.0.0',
       allowedHosts: true,
     },
-    // mermaid 是动态 import 的大依赖：先预构建，dev 下它的 dep URL 才稳定。
+    // mermaid / mathjax 都是动态 import 的大依赖：先预构建，dev 下它们的 dep URL 才稳定。
     // 否则首次访问时 Vite 临时发现并重新优化，旧页面拿着过期的 ?v=hash 会 404。
     optimizeDeps: {
-      include: ['mermaid'],
+      include: [
+        'mermaid',
+        'mathjax-full/js/mathjax.js',
+        'mathjax-full/js/input/tex.js',
+        'mathjax-full/js/output/svg.js',
+        'mathjax-full/js/adaptors/liteAdaptor.js',
+        'mathjax-full/js/handlers/html.js',
+        'mathjax-full/js/input/tex/AllPackages.js',
+      ],
     },
   },
 });

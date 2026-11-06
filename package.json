@@ -19,6 +19,7 @@
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.475.0",
     "marked": "^15.0.7",
+    "mathjax-full": "^3.2.2",
     "mermaid": "^12.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

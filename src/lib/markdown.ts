@@ -2,6 +2,15 @@ import { Marked } from 'marked';
 
 import { hljs, resolveLanguage } from './hljs-languages';
 import { MERMAID_ATTR, MERMAID_CLASS, MERMAID_LOADING_TEXT, MERMAID_STATE_ATTR, encodeMermaid } from './mermaid';
+import {
+  MATH_ATTR,
+  MATH_BLOCK_CLASS,
+  MATH_BLOCK_STYLE,
+  MATH_CLASS,
+  MATH_DISPLAY_ATTR,
+  MATH_STATE_ATTR,
+  encodeMath,
+} from './math-render';
 
 export function escapeHtml(value: string): string {
   return value
@@ -76,6 +85,16 @@ function highlightCode(text: string, language: string): string {
   return highlighted;
 }
 
+/** 公式占位：真正的内容由 useMathHydration 异步填 SVG，这里只放源码兜底 */
+function mathPlaceholder(tex: string, display: boolean, raw: string): string {
+  const encoded = encodeMath(tex);
+  const fallback = escapeHtml(raw.trim());
+  if (display) {
+    return `<section class="${MATH_CLASS} ${MATH_BLOCK_CLASS}" ${MATH_ATTR}="${encoded}" ${MATH_DISPLAY_ATTR}="1" ${MATH_STATE_ATTR}="loading" style="${MATH_BLOCK_STYLE}">${fallback}</section>`;
+  }
+  return `<span class="${MATH_CLASS}" ${MATH_ATTR}="${encoded}" ${MATH_DISPLAY_ATTR}="0" ${MATH_STATE_ATTR}="loading">${fallback}</span>`;
+}
+
 const marked = new Marked({
   gfm: true,
   breaks: false,
@@ -103,6 +122,79 @@ const marked = new Marked({
       },
       renderer(token: any) {
         return `<strong>${this.parser.parseInline(token.tokens)}</strong>`;
+      },
+    },
+    /**
+     * LaTeX（对齐 doocs-md）：支持 `$…$` / `$$…$$` / `\(…\)` / `\[…\]` 四种写法。
+     *
+     * 和 Mermaid 一样只吐占位元素，公式编译后由 useMathHydration 灌入 SVG：
+     * - 编辑器每敲一个字都会整篇重渲染，同步编译会把输入拖卡；
+     * - 占位里先放公式源码，MathJax 还没加载完时看到的是 TeX 而不是空白。
+     */
+    {
+      name: 'mathBlock',
+      level: 'block',
+      start(src) {
+        return src.match(/^ {0,3}\$\$/m)?.index;
+      },
+      tokenizer(src) {
+        const multiline = /^ {0,3}\$\$[ \t]*\r?\n([\s\S]+?)\r?\n {0,3}\$\$[ \t]*(?:\n+|$)/.exec(src);
+        const single = /^ {0,3}\$\$([^\n]+?)\$\$[ \t]*(?:\n+|$)/.exec(src);
+        const match = multiline ?? single;
+        if (!match) return undefined;
+        return { type: 'mathBlock', raw: match[0], text: match[1].trim(), display: true };
+      },
+      renderer(token: any) {
+        return mathPlaceholder(token.text, true, token.raw);
+      },
+    },
+    {
+      name: 'mathLatexBlock',
+      level: 'block',
+      start(src) {
+        return src.match(/^ {0,3}\\\[/m)?.index;
+      },
+      tokenizer(src) {
+        const match = /^ {0,3}\\\[([\s\S]+?)\\\][ \t]*(?:\n+|$)/.exec(src);
+        if (!match) return undefined;
+        return { type: 'mathLatexBlock', raw: match[0], text: match[1].trim(), display: true };
+      },
+      renderer(token: any) {
+        return mathPlaceholder(token.text, true, token.raw);
+      },
+    },
+    {
+      name: 'mathInline',
+      level: 'inline',
+      start(src) {
+        const index = src.search(/\$(?=[^\s$])/);
+        return index === -1 ? undefined : index;
+      },
+      tokenizer(src) {
+        // 闭合符后必须是行尾或非字母数字（汉字、空白、标点都算），
+        // 否则「价格 $5 和 $10」这类金额会被当成公式
+        const match = /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n$]))\1(?![A-Za-z0-9$])/.exec(src);
+        if (!match) return undefined;
+        return { type: 'mathInline', raw: match[0], text: match[2].trim(), display: match[1].length === 2 };
+      },
+      renderer(token: any) {
+        return mathPlaceholder(token.text, token.display, token.raw);
+      },
+    },
+    {
+      name: 'mathInlineLatex',
+      level: 'inline',
+      start(src) {
+        const index = src.indexOf('\\(');
+        return index === -1 ? undefined : index;
+      },
+      tokenizer(src) {
+        const match = /^\\\(([\s\S]+?)\\\)/.exec(src);
+        if (!match) return undefined;
+        return { type: 'mathInlineLatex', raw: match[0], text: match[1].trim(), display: false };
+      },
+      renderer(token: any) {
+        return mathPlaceholder(token.text, false, token.raw);
       },
     },
     // Mermaid 只输出占位元素：SVG 要等 DOM 落盘后异步渲染（见 lib/mermaid.ts）

@@ -40,6 +40,15 @@ export function inlinePresentationAttributes(svg: SVGSVGElement): void {
       if (isText) {
         const color = isUsablePaint(fill) && !isTransparentPaint(fill) ? fill : computed(node, 'color');
         if (isUsablePaint(color) && !isTransparentPaint(color)) node.setAttribute('fill', color);
+      } else if (isNonePaint(fill)) {
+        /**
+         * 计算值是 none 时必须写死成属性。
+         *
+         * mermaid 的连线是靠 CSS 里的 fill:none 保持「只描边」的，而微信会丢掉 <style>；
+         * 属性缺失时 SVG 的初始值是 fill=black，于是每条贝塞尔曲线都被填成实心黑块——
+         * 表现就是箭头附近那一坨坨墨迹。doocs 的 bakePaint 也是同类处理。
+         */
+        node.setAttribute('fill', 'none');
       } else if (isUsablePaint(fill) && !isTransparentPaint(fill)) {
         node.setAttribute('fill', fill);
       }
