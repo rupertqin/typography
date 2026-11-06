@@ -3,6 +3,20 @@ import { WECHAT_MAX_WIDTH, sanitizeMermaidSvgs } from './wechat-svg';
 
 const HIDDEN_HOST_STYLE = 'position:fixed;left:-99999px;top:0;visibility:hidden;pointer-events:none;z-index:-1';
 
+/**
+ * 复制产物首尾的占位段（同 doocs-md 的 createEmptyNode）：
+ * 公众号会吃掉首尾元素的 margin，前后各垫一个 0 行高、只含 &nbsp; 的空段，
+ * 粘贴后正文上下才有留白，标题也不会贴着编辑框顶边。
+ */
+const SPACER_STYLE = 'font-size:0;line-height:0;margin:0;';
+
+function createSpacer(): HTMLElement {
+  const node = document.createElement('p');
+  node.setAttribute('style', SPACER_STYLE);
+  node.innerHTML = '&nbsp;';
+  return node;
+}
+
 /** Mermaid 容器在复制时要保留卡片观感，把 class 版样式压成内联 */
 const MERMAID_WRAPPER_STYLE =
   'margin:1.2em 0;padding:12px 10px;border:1px solid #e9e9ec;border-radius:8px;background:#fff;text-align:center;';
@@ -101,8 +115,14 @@ export function buildCopyBundle(root: HTMLElement): CopyBundle {
     sanitizeMermaidSvgs(clone, WECHAT_MAX_WIDTH);
     stripAttributes(clone);
 
+    // 纯文本要在插占位之前取，否则开头会多出两个不换行空格
     const text = clone.innerText ?? clone.textContent ?? '';
-    return { html: clone.outerHTML, text, diagrams, dropped };
+
+    clone.insertBefore(createSpacer(), clone.firstChild);
+    clone.appendChild(createSpacer());
+
+    // 用 innerHTML 而不是 outerHTML：外层只是预览用的定位 div，粘进公众号不需要它
+    return { html: clone.innerHTML, text, diagrams, dropped };
   } finally {
     host.remove();
   }

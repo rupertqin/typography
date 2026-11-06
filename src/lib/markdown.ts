@@ -52,6 +52,31 @@ const marked = new Marked({
   gfm: true,
   breaks: false,
   extensions: [
+    /**
+     * 中文标点紧贴加粗定界符时，CommonMark 的 flanking 规则判定「不能闭合」，
+     * marked 会把 `**` 原样输出：`…缺席。**占了那个位置。**权力…` 里的加粗就丢了。
+     * marked 15 没有 strong 的 tokenizer 可覆盖（只有 emStrong），所以在核心规则之前
+     * 用宽松正则先吃掉 `**…**`：
+     * - 只放宽 `**`，不动 `__`：`a__b__c` 这类下划线写法仍按 CommonMark 保持原文；
+     * - 开头/结尾仍要求非空白（`(?=\S)` / `\S`），`a ** b` 不受影响；
+     * - 行内代码更靠前被 code 规则消费，`` `**x**` `` 不受影响；
+     * - `***粗斜***` 会解析成 `<strong><em>粗斜</em></strong>`，观感一致。
+     */
+    {
+      name: 'strongCjk',
+      level: 'inline',
+      start(src: string) {
+        return src.indexOf('**');
+      },
+      tokenizer(src: string) {
+        const match = /^\*\*(?=\S)([\s\S]*?\S)\*\*(?!\*)/.exec(src);
+        if (!match) return undefined;
+        return { type: 'strongCjk', raw: match[0], tokens: this.lexer.inlineTokens(match[1]) };
+      },
+      renderer(token: any) {
+        return `<strong>${this.parser.parseInline(token.tokens)}</strong>`;
+      },
+    },
     // Mermaid 只输出占位元素：SVG 要等 DOM 落盘后异步渲染（见 lib/mermaid.ts）
     {
       name: 'mermaid',

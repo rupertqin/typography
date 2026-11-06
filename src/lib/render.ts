@@ -167,7 +167,7 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
 
   // 整体字号放在最后：配色重映射会重写 style，先缩放会被覆盖
   scaleFontSizes(root, fontScale);
-  applyFontFamily(root, doc, fontFamily, fontWeight);
+  applyFontFamily(root, fontFamily, fontWeight);
   stripFontFamilyQuotes(root);
 
   root.querySelectorAll('[data-part], [data-part-self]').forEach((node) => {

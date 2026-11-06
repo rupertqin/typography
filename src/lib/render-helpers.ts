@@ -267,32 +267,21 @@ export function stripFontFamilyQuotes(root: Element): void {
 }
 
 /**
- * 正文字体 + 内容 wrapper：参照秀米/135 的粘贴结构，字体只声明在 section 容器上。
- * 1) 选了字体时，主题 section 自身的 font-family 也换成它（它们粘贴后的 DOM 就是这样）；
- * 2) 内容外面永远再包一层 section——微信粘贴时会把最外层节点当作粘贴根节点重建，
- *    内层这层才是真正留在文章里的容器（选了字体就带字体，没选就是干净容器）。
+ * 正文字体：只改根 section 的 font-family / font-weight，不再往里套第二层容器。
+ *
+ * 早先这里会在根 section 内再包一层带 font-family 的 section（迁就「微信把最外层当粘贴根重建」的旧说法），
+ * 结果产物是两层嵌套 section；主题的 wrapper 样式本身就带 font-family，根节点永远有内联属性，
+ * 所以内层容器没有存在价值，直接去掉，产物只留一层 section。
  * 逐个元素写 font-family 反而会被清洗链路整条丢弃，连带该元素的其他样式一起消失。
  */
-export function applyFontFamily(root: Element, doc: Document, stack: string, weight?: number): void {
+export function applyFontFamily(root: Element, stack: string, weight?: number): void {
   const family = stack.replace(/"/g, '').trim();
+  if (!family) return;
+
   const rootStyle = root.getAttribute('style') ?? '';
-  const themeFamily = /font-family\s*:\s*([^;]+)/i.exec(rootStyle)?.[1]?.trim() ?? '';
-  const decl = family ? `font-family:${family};${weight ? `font-weight:${weight};` : ''}` : '';
-
-  if (decl) {
-    const rest = rootStyle
-      .replace(/font-family\s*:[^;]*;?/i, '')
-      .replace(/font-weight\s*:[^;]*;?/i, '');
-    root.setAttribute('style', decl + rest);
-  }
-
-  const wrapper = doc.createElement('section');
-  // 没有选字体时也带上主题字体：微信会丢弃没有任何属性的空 section，
-  // 带条 font-family 才能作为真实容器留在文章里。
-  const wrapperDecl = decl || (themeFamily ? `font-family:${themeFamily};` : '');
-  if (wrapperDecl) wrapper.setAttribute('style', wrapperDecl);
-  while (root.firstChild) wrapper.appendChild(root.firstChild);
-  root.appendChild(wrapper);
+  const decl = `font-family:${family};${weight ? `font-weight:${weight};` : ''}`;
+  const rest = rootStyle.replace(/font-family\s*:[^;]*;?/i, '').replace(/font-weight\s*:[^;]*;?/i, '');
+  root.setAttribute('style', decl + rest);
 }
 
 /* ------------------------------ 版式参数层 ------------------------------ */

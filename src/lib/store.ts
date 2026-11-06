@@ -5,6 +5,12 @@ import type { HeadingLevels, HeadingStyleType, ThemeParams } from './types';
 import { FOLLOW_THEME_CODE } from './code-themes';
 import { SAMPLE_MARKDOWN } from './sample';
 
+/** 工作区三态：只显示编辑、只显示预览、左右分屏 */
+export type ViewMode = 'edit' | 'split' | 'preview';
+
+/** 预览纸宽度：手机列宽（375px）或铺满分栏 */
+export type PreviewDevice = 'mobile' | 'desktop';
+
 export interface TypographyState {
   markdown: string;
   themeId: string;
@@ -21,6 +27,12 @@ export interface TypographyState {
   blockSpacing: number;
   blockquoteBackground: string;
   headingStyles: Partial<Record<HeadingLevels, HeadingStyleType>>;
+  /** 工作区布局（持久化，刷新后保持上次的分屏比例与视图） */
+  viewMode: ViewMode;
+  previewDevice: PreviewDevice;
+  scrollSync: boolean;
+  /** 编辑区占分屏的百分比，20~80 */
+  splitRatio: number;
   setMarkdown: (markdown: string) => void;
   setThemeId: (themeId: string) => void;
   setArticleType: (articleType: string) => void;
@@ -36,7 +48,18 @@ export interface TypographyState {
   setBlockquoteBackground: (background: string) => void;
   setHeadingStyle: (level: HeadingLevels, style: HeadingStyleType) => void;
   resetParams: () => void;
+  setViewMode: (viewMode: ViewMode) => void;
+  setPreviewDevice: (previewDevice: PreviewDevice) => void;
+  togglePreviewDevice: () => void;
+  setScrollSync: (scrollSync: boolean) => void;
+  toggleScrollSync: () => void;
+  setSplitRatio: (splitRatio: number) => void;
 }
+
+/** 分屏比例的兜底范围：任何一栏都不该窄到没法用 */
+export const SPLIT_RATIO_MIN = 20;
+export const SPLIT_RATIO_MAX = 80;
+export const SPLIT_RATIO_DEFAULT = 50;
 
 /** 草稿持久化 key（localStorage） */
 export const useTypographyStore = create<TypographyState>()(
@@ -55,6 +78,10 @@ export const useTypographyStore = create<TypographyState>()(
       blockSpacing: DEFAULT_THEME_PARAMS.blockSpacing,
       blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
       headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
+      viewMode: 'split',
+      previewDevice: 'mobile',
+      scrollSync: true,
+      splitRatio: SPLIT_RATIO_DEFAULT,
       setMarkdown: (markdown) => set({ markdown }),
       setThemeId: (themeId) => set({ themeId }),
       setArticleType: (articleType) => set({ articleType }),
@@ -88,6 +115,14 @@ export const useTypographyStore = create<TypographyState>()(
           blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
           headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
         }),
+      setViewMode: (viewMode) => set({ viewMode }),
+      setPreviewDevice: (previewDevice) => set({ previewDevice }),
+      togglePreviewDevice: () =>
+        set((state) => ({ previewDevice: state.previewDevice === 'mobile' ? 'desktop' : 'mobile' })),
+      setScrollSync: (scrollSync) => set({ scrollSync }),
+      toggleScrollSync: () => set((state) => ({ scrollSync: !state.scrollSync })),
+      setSplitRatio: (splitRatio) =>
+        set({ splitRatio: Math.min(SPLIT_RATIO_MAX, Math.max(SPLIT_RATIO_MIN, splitRatio)) }),
     }),
     { name: 'typography' },
   ),

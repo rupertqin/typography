@@ -16,11 +16,11 @@ const ICONS = {
 } as const;
 
 const TOOL_BUTTON =
-  'rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600';
+  'rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900';
 const TOOL_BUTTON_DISABLED = `${TOOL_BUTTON} disabled:pointer-events-none disabled:opacity-30`;
 
-const SEGMENTED_BUTTON = 'rounded px-1.5 py-0.5 tabular-nums transition-all';
-const SEGMENTED_ACTIVE = 'bg-white font-medium text-emerald-700 shadow-sm';
+const SEGMENTED_BUTTON = 'rounded px-1.5 py-0.5 tabular-nums transition-colors';
+const SEGMENTED_ACTIVE = 'bg-zinc-100 font-medium text-zinc-900';
 const SEGMENTED_IDLE = 'text-zinc-500 hover:text-zinc-800';
 
 const UNDO_TITLE = '撤销（⌘/Ctrl + Z）';
@@ -50,8 +50,8 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
   const iosFonts = FONT_FAMILIES.filter((font) => font.iosOnly);
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-200/80 bg-white px-2 py-1.5 sm:px-3 lg:px-5">
-      <div className="flex items-center gap-0.5 rounded-lg bg-zinc-100/80 p-1">
+    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-200 bg-white px-3 py-2 lg:px-5">
+      <div className="flex items-center gap-0.5 rounded-md border border-zinc-200 p-0.5">
         {INSERT_ACTIONS.map((action) => {
           const Icon = ICONS[action.id as keyof typeof ICONS];
           return (
@@ -61,7 +61,7 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
               onClick={() => editor.insert(action)}
               title={action.title}
               aria-label={action.title}
-              className="rounded-md p-1.5 text-zinc-500 transition-all hover:bg-white hover:text-emerald-700 hover:shadow-sm"
+              className={TOOL_BUTTON}
             >
               <Icon size={15} />
             </button>
@@ -121,7 +121,7 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
         {!isMobile && <ThemePicker theme={theme} inHeader />}
 
         <label
-          className="flex shrink-0 items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5"
+          className="flex shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-1.5 py-1"
           title="正文字体：公众号只认读者设备自带的字体，选不到会回退系统默认"
         >
           <span className="hidden text-[11px] text-zinc-400 sm:inline">字体</span>
@@ -147,7 +147,7 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
         </label>
 
         <div
-          className="flex shrink-0 items-center gap-0.5 rounded-md bg-zinc-100 p-0.5"
+          className="flex shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-0.5"
           title="整体字号，复制到公众号后同样生效"
         >
           <span className="hidden pl-1 pr-0.5 text-[11px] text-zinc-400 sm:inline">字号</span>
@@ -166,7 +166,7 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
         </div>
 
         <div
-          className="flex shrink-0 items-center gap-0.5 rounded-md bg-zinc-100 p-0.5"
+          className="flex shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-0.5"
           title="缩小预览，一屏看整篇结构（不影响复制结果）"
         >
           {ZOOM_LEVELS.map((level) => (

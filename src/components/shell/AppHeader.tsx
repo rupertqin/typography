@@ -1,53 +1,56 @@
-import { ArrowLeft } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { resolveBackHref } from '../../lib/backUrl';
 
 interface AppHeaderProps {
   icon: LucideIcon;
   title: string;
   /** 说明文字不占版面，压进 title 提示里 */
   description: string;
+  /** 主操作（复制到公众号） */
   actions?: ReactNode;
+  /** 右侧「样式」按钮：开合顶部样式区 */
+  styleOpen: boolean;
+  onToggleStyle: () => void;
 }
 
 /**
- * 父站地址的判定见 lib/backUrl.ts：子路径取同域上一级，独立子域名根才用 PUBLIC_BACK_URL。
+ * 顶栏（参考 doocs-md 的 header）：白色 + 一条下边框 + 毛玻璃，60px。
+ * 左边品牌图标和标题，右边只放主操作与「样式」开关，其余入口都在下面那条工具条里。
  */
-const BACK_URL = import.meta.env.PUBLIC_BACK_URL as string | undefined;
-
-const backHref = (): string | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  return resolveBackHref(window.location.pathname, window.location.href, BACK_URL);
-};
-
-/** 顶栏：单行，左侧图标 + 标题，右侧返回站点与主要动作（复制） */
-export default function AppHeader({ icon: Icon, title, description, actions }: AppHeaderProps) {
-  const backUrl = backHref();
-
+export default function AppHeader({
+  icon: Icon,
+  title,
+  description,
+  actions,
+  styleOpen,
+  onToggleStyle,
+}: AppHeaderProps) {
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-200/80 bg-white px-3 py-2.5 sm:px-5 lg:h-14 lg:flex-nowrap lg:py-0">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md shadow-emerald-500/30">
+    <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-zinc-200 bg-white/95 px-3 backdrop-blur sm:gap-3 sm:px-5 lg:h-[60px]">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-900 text-white">
         <Icon size={16} strokeWidth={2.2} />
       </div>
-      <h1 className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-tight text-zinc-900" title={description}>
+      <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-zinc-900" title={description}>
         {title}
       </h1>
-      {(backUrl || actions) && (
-        <div className="flex items-center gap-2 max-sm:w-full max-sm:justify-end">
-          {backUrl && (
-            <a
-              href={backUrl}
-              aria-label="返回站点"
-              className="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-2 text-xs font-medium text-zinc-500 transition-colors duration-200 hover:border-zinc-300 hover:text-zinc-700 sm:px-3"
-            >
-              <ArrowLeft size={13} />
-              <span className="hidden sm:inline">返回站点</span>
-            </a>
-          )}
-          {actions}
-        </div>
-      )}
+
+      {actions}
+
+      <button
+        type="button"
+        onClick={onToggleStyle}
+        aria-pressed={styleOpen}
+        title="样式：配色与排版"
+        className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors sm:px-3 ${
+          styleOpen
+            ? 'border-zinc-300 bg-zinc-100 text-zinc-900'
+            : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+        }`}
+      >
+        <SlidersHorizontal size={13} />
+        <span className="hidden sm:inline">样式</span>
+      </button>
     </header>
   );
 }

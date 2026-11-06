@@ -19,6 +19,7 @@ interface EditorPanelProps {
  */
 export default function EditorPanel({ editor, previewRef, isMobile, accent }: EditorPanelProps) {
   const markdown = useTypographyStore((state) => state.markdown);
+  const scrollSync = useTypographyStore((state) => state.scrollSync);
 
   const highlightLayer = useRef<HTMLPreElement>(null);
   // 中文输入法组词时，浏览器用 textarea 自己的颜色画候字；字透明就看不清，
@@ -54,18 +55,22 @@ export default function EditorPanel({ editor, previewRef, isMobile, accent }: Ed
   const scrollToPreview = () => {
     const source = editor.textareaRef.current;
     const target = previewRef.current;
-    if (!source || !target || isMobile) return;
+    if (!source || !target || isMobile || !scrollSync) return;
     const range = source.scrollHeight - source.clientHeight;
     target.scrollTop = range > 0 ? (source.scrollTop / range) * (target.scrollHeight - target.clientHeight) : 0;
   };
 
   return (
-    <div className="flex h-[62vh] min-h-0 flex-col gap-2 bg-white p-3 lg:h-auto lg:flex-1">
-      <div className="group relative min-h-0 flex-1" style={{ '--mh-accent': accent } as CSSProperties}>
+    <div className="flex min-h-0 flex-1 flex-col gap-2 bg-white">
+      {/* 编辑区不画边框：doocs 的 CodeMirror 也是整块留白，边界由中缝分隔条负责 */}
+      <div
+        className="relative min-h-0 flex-1 px-5 py-4"
+        style={{ '--mh-accent': accent } as CSSProperties}
+      >
         <pre
           ref={highlightLayer}
           aria-hidden="true"
-          className="md-editor-highlight pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words rounded-xl bg-zinc-50/70 p-4 font-mono text-[13px] leading-relaxed ring-1 ring-inset ring-zinc-200 group-focus-within:bg-white"
+          className="md-editor-highlight pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words px-5 py-4 font-mono text-[13px] leading-relaxed"
           style={{ opacity: composing ? 0 : 1 }}
           dangerouslySetInnerHTML={{ __html: highlighted }}
         />
@@ -84,32 +89,29 @@ export default function EditorPanel({ editor, previewRef, isMobile, accent }: Ed
           placeholder="在这里写 Markdown，右边实时预览……"
           aria-label="Markdown 编辑区"
           spellCheck={false}
-          className={`absolute inset-0 h-full w-full resize-none rounded-xl bg-transparent p-4 font-mono text-[13px] leading-relaxed caret-zinc-800 ring-1 ring-inset ring-zinc-200 selection:bg-emerald-400/25 placeholder-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-300 ${
+          className={`absolute inset-0 h-full w-full resize-none bg-transparent px-5 py-4 font-mono text-[13px] leading-relaxed caret-zinc-800 outline-none selection:bg-zinc-900/10 placeholder-zinc-300 ${
             composing ? 'text-zinc-800' : 'text-transparent'
           }`}
         />
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-3 px-1 text-[11px] tabular-nums">
-        {editor.notice ? (
+      {/* 字数、行数、草稿提示都在底部 StatusBar；这里只留「刚做了可撤销的操作」这种临时提示 */}
+      {editor.notice && (
+        <div className="flex shrink-0 items-center gap-3 px-1 text-[11px] tabular-nums">
           <span className="text-amber-600">
             {editor.notice.text}
             {editor.notice.undoable && (
               <button
                 type="button"
                 onClick={editor.undoNotice}
-                className="ml-2 font-medium text-emerald-600 hover:underline"
+                className="ml-2 font-medium text-zinc-900 underline hover:text-zinc-700"
               >
                 撤销
               </button>
             )}
           </span>
-        ) : (
-          <span className="truncate text-zinc-400">
-            {editor.charCount.toLocaleString()} 字 · 约 {editor.minutes} 分钟读完 · 草稿自动保存在本机
-          </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

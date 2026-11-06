@@ -7,9 +7,9 @@ import TypographyApp from '../components/TypographyApp';
   title="公众号排版风格 · Typography"
   description="微信公众号文章排版工具：用 Markdown 写文章，实时预览排版效果，35 套主题可选（标题、引用、分割线各有装饰），代码块自动高亮。一键复制带样式的正文，粘贴到公众号后台即可，草稿自动保存在本机。"
 >
-  <main class="min-h-full w-full">
-    <!-- 桌面端整页铺满：顶栏 + 工具条 + 双栏各自滚动，页面本身不滚动 -->
-    <div class="mx-auto w-full px-3 py-3 sm:px-5 sm:py-5 lg:h-[100dvh] lg:p-0">
+  <main class="h-full w-full">
+    <!-- 应用外壳铺满视口：顶栏 + 工具条 + 分栏 + 状态栏，页面本身不滚动，只有编辑区/预览区各自滚 -->
+    <div class="mx-auto h-[100dvh] w-full">
       <TypographyApp client:only="react" />
     </div>
   </main>

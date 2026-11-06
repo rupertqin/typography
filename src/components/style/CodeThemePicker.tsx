@@ -2,6 +2,7 @@ import { CODE_THEME_GROUPS, FOLLOW_THEME_CODE, findCodeTheme } from '../../lib/c
 import { getDecl } from '../../lib/render-helpers';
 import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/themes';
+import Select from '../ui/Select';
 
 const PREVIEW_TOKENS = ['keyword', 'title', 'string', 'comment'];
 
@@ -37,35 +38,34 @@ export default function CodeThemePicker({ theme }: { theme: Theme }) {
   const swatch = resolveSwatch(theme, codeThemeId);
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <select
-          value={codeThemeId}
-          onChange={(event) => setCodeThemeId(event.target.value)}
-          aria-label="代码配色"
-          className="min-w-0 flex-1 cursor-pointer rounded-md bg-white py-1 pl-2 pr-1 text-xs text-zinc-700 ring-1 ring-inset ring-zinc-200 focus:outline-none focus:ring-emerald-300"
-        >
-          <option value={FOLLOW_THEME_CODE}>跟随主题（{swatch.label === '跟随主题' ? theme.name : '当前主题'}）</option>
-          <optgroup label={`亮色（${CODE_THEME_GROUPS.light.length}）`}>
-            {CODE_THEME_GROUPS.light.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label={`暗色（${CODE_THEME_GROUPS.dark.length}）`}>
-            {CODE_THEME_GROUPS.dark.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
+    <div className="space-y-2">
+      <Select
+        value={codeThemeId}
+        onChange={setCodeThemeId}
+        ariaLabel="代码配色"
+        className="w-full"
+        title="选一套独立的代码块配色，或跟随文章主题"
+      >
+        <option value={FOLLOW_THEME_CODE}>跟随主题（{theme.name}）</option>
+        <optgroup label={`亮色（${CODE_THEME_GROUPS.light.length}）`}>
+          {CODE_THEME_GROUPS.light.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label={`暗色（${CODE_THEME_GROUPS.dark.length}）`}>
+          {CODE_THEME_GROUPS.dark.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </optgroup>
+      </Select>
 
-      {/* 迷你预览：底色 + 4 个 token 色块，选之前就能看出观感 */}
+      {/* 迷你预览：底色 + 4 个 token 色，选之前就能看出观感 */}
       <div
-        className="flex items-center gap-1.5 overflow-hidden rounded-md px-2 py-1.5 ring-1 ring-inset ring-black/5"
+        className="flex items-center gap-2 overflow-hidden rounded-md px-2.5 py-2 ring-1 ring-inset ring-black/5"
         style={{ background: swatch.background }}
         aria-hidden
       >
@@ -78,7 +78,10 @@ export default function CodeThemePicker({ theme }: { theme: Theme }) {
             {text}
           </span>
         ))}
-        <span className="ml-auto font-mono text-[10px] leading-none opacity-60" style={{ color: swatch.colors[0] || '#8b8b8b' }}>
+        <span
+          className="ml-auto font-mono text-[10px] leading-none opacity-60"
+          style={{ color: swatch.colors[0] || '#8b8b8b' }}
+        >
           {'{ }'}
         </span>
       </div>

@@ -4,6 +4,9 @@ import { useShallow } from 'zustand/react/shallow';
 import EditorPanel from './editor/EditorPanel';
 import PreviewPanel from './preview/PreviewPanel';
 import AppHeader from './shell/AppHeader';
+import SplitPane from './shell/SplitPane';
+import StatusBar from './shell/StatusBar';
+import StylePanel from './shell/StylePanel';
 import WorkbenchBar from './shell/WorkbenchBar';
 import { copyRichText } from '../lib/clipboard';
 import { buildCopyBundleWhenReady } from '../lib/copy-html';
@@ -34,6 +37,8 @@ export default function TypographyApp() {
   const articleRef = useRef<HTMLDivElement>(null);
   const statusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [status, setStatus] = useState<CopyStatus>('idle');
+  // 顶部样式区开合；顶栏「样式」按钮即开关
+  const [styleOpen, setStyleOpen] = useState(false);
 
   const theme = ALL_THEMES.find((item) => item.id === themeId) ?? ALL_THEMES[0];
   const fontPreset = FONT_FAMILIES.find((item) => item.id === fontFamilyId);
@@ -100,17 +105,19 @@ export default function TypographyApp() {
   const Icon = status === 'ok' ? Check : Copy;
 
   return (
-    <div className="flex flex-col lg:h-full lg:min-h-0">
+    <div className="flex h-full min-h-0 flex-col">
       <AppHeader
         icon={Newspaper}
         title="公众号排版风格"
         description="写 Markdown，一键复制带样式的正文，粘贴到公众号后台即可。"
+        styleOpen={styleOpen}
+        onToggleStyle={() => setStyleOpen((open) => !open)}
         actions={
           <button
             type="button"
             onClick={handleCopy}
             disabled={!markdown.trim()}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700 active:translate-y-0 disabled:translate-y-0 disabled:cursor-not-allowed disabled:from-zinc-100 disabled:to-zinc-100 disabled:text-zinc-300 disabled:shadow-none"
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-zinc-900 px-3 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 sm:px-3.5"
           >
             <Icon size={14} />
             {label}
@@ -120,25 +127,32 @@ export default function TypographyApp() {
 
       <WorkbenchBar editor={editor} theme={theme} isMobile={isMobile} />
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 min-w-0 flex-col lg:w-1/2">
+      {/* 上：配色 + 排版合一的样式区；下：编辑 | 预览 */}
+      {styleOpen && <StylePanel theme={theme} onClose={() => setStyleOpen(false)} />}
+
+      <SplitPane
+        isMobile={isMobile}
+        editor={
           <EditorPanel
             editor={editor}
             previewRef={scrollerRef}
             isMobile={isMobile}
             accent={isHexColor(mainColor) ? mainColor : theme.accent}
           />
-        </div>
-        <div className="flex min-h-0 min-w-0 flex-col border-t border-zinc-200 lg:w-1/2 lg:border-l lg:border-t-0">
+        }
+        preview={
           <PreviewPanel
             theme={theme}
             html={html}
             hasContent={Boolean(deferredMarkdown.trim())}
             scrollerRef={scrollerRef}
             articleRef={articleRef}
+            copying={status === 'waiting'}
           />
-        </div>
-      </div>
+        }
+      />
+
+      <StatusBar />
     </div>
   );
 }

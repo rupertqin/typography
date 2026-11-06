@@ -12,6 +12,7 @@ const { THEMES } = await import('../src/lib/themes');
 const { SAMPLE_MARKDOWN } = await import('../src/lib/sample');
 const { applyColorOverrides, isHexColor } = await import('../src/lib/recolor');
 const { FONT_FAMILIES } = await import('../src/lib/constants');
+const { parseMarkdown } = await import('../src/lib/markdown');
 
 const problems: string[] = [];
 const MINI = `## 小标题样式
@@ -91,9 +92,13 @@ const tinySizes = pxSizes(tiny);
 if (tinySizes.some((size) => !Number.isInteger(size))) problems.push('极小档：出现小数 px');
 if (tinySizes.some((size) => size < 10)) problems.push('极小档：出现小于 10px 的字号');
 
-// 正文字体：只在主题 section 里包一层带字体的 wrapper，内层元素不写 font-family
+// 正文字体：字体只写在唯一的根 section 上，不再套第二层容器，内层元素不写 font-family
 const parseHtml = (html: string) =>
   new dom.window.DOMParser().parseFromString(html, 'text/html');
+// 选字体前后 section 数量必须一致：多出来的那层就是以前的内层字体容器
+const baseSectionCount = parseHtml(renderMarkdown(SAMPLE_MARKDOWN, THEMES[0] as any)).querySelectorAll(
+  'section',
+).length;
 for (const font of FONT_FAMILIES) {
   if (!font.stack) continue;
   const out = renderMarkdown(SAMPLE_MARKDOWN, THEMES[0] as any, {
@@ -103,16 +108,17 @@ for (const font of FONT_FAMILIES) {
   if (out.includes('&quot;')) problems.push(`字体 ${font.id}: 内联样式里出现了转义引号`);
   const doc = parseHtml(out);
   const root = doc.body.firstElementChild;
-  const wrapper = root?.children.length === 1 ? root.firstElementChild : null;
-  const wrapperStyle = wrapper?.getAttribute('style') ?? '';
-  if (!(root?.getAttribute('style') ?? '').startsWith(`font-family:${font.stack};`)) {
-    problems.push(`字体 ${font.id}: 主题 section 未换成所选字体`);
+  const rootStyle = root?.getAttribute('style') ?? '';
+  if (!rootStyle.startsWith(`font-family:${font.stack};`)) {
+    problems.push(`字体 ${font.id}: 根 section 未换成所选字体`);
   }
-  if (!wrapperStyle.startsWith(`font-family:${font.stack};`)) {
-    problems.push(`字体 ${font.id}: 缺少承载字体的 wrapper section`);
+  if (font.weight && !rootStyle.includes(`font-weight:${font.weight}`)) {
+    problems.push(`字体 ${font.id}: 根 section 没带字重`);
   }
-  if (font.weight && !wrapperStyle.includes(`font-weight:${font.weight}`)) {
-    problems.push(`字体 ${font.id}: wrapper 没带字重`);
+  if (doc.querySelectorAll('section').length !== baseSectionCount) {
+    problems.push(
+      `字体 ${font.id}: 选字体后 section 数量从 ${baseSectionCount} 变成 ${doc.querySelectorAll('section').length}（多包了一层）`,
+    );
   }
   const paragraph = Array.from(doc.querySelectorAll('p')).find((node) => node.textContent?.trim());
   if ((paragraph?.getAttribute('style') ?? '').includes('font-family')) {
@@ -126,14 +132,41 @@ for (const font of FONT_FAMILIES) {
   if (!codeStyle.includes('monospace')) problems.push(`字体 ${font.id}: 覆盖了代码块的等宽字体`);
 }
 
-// 默认输出也必须有一层内容 wrapper，并且带 font-family：
-// 微信会把最外层当作粘贴根节点重建，且会丢掉没有任何属性的空 section
+// 默认输出：整篇只包一层 section（粘贴形态 = 一层容器 + 首尾占位段），根节点自带 font-family
 const noFontDoc = parseHtml(renderMarkdown(MINI, THEMES[0] as any));
 const noFontRoot = noFontDoc.body.firstElementChild;
-const noFontWrapper = noFontRoot?.children.length === 1 ? noFontRoot.firstElementChild : null;
-if (!(noFontWrapper?.tagName === 'SECTION')) problems.push('默认输出缺少内容 wrapper section');
-if (!(noFontWrapper?.getAttribute('style') ?? '').startsWith('font-family:')) {
-  problems.push('默认输出的 wrapper 没有 font-family（会被微信当空节点丢掉）');
+if (noFontRoot?.tagName !== 'SECTION') problems.push('默认输出缺少根 section');
+if (!(noFontRoot?.getAttribute('style') ?? '').startsWith('font-family:')) {
+  problems.push('默认输出的根 section 没有 font-family');
+}
+// 旧的内层字体容器特征：直属子节点、style 只有一条 font-family
+const leftoverWrapper = Array.from(noFontRoot?.children ?? []).find(
+  (node) => node.tagName === 'SECTION' && /^font-family:[^;]*;$/.test(node.getAttribute('style') ?? ''),
+);
+if (leftoverWrapper) problems.push('默认输出仍有一层只带 font-family 的 wrapper section');
+
+// 中文标点紧贴加粗定界符（CommonMark 的 flanking 规则会判成不能闭合，必须靠扩展兜住）
+const boldCases: Array<{ name: string; md: string; bold: boolean }> = [
+  {
+    name: '标点后闭合、紧跟汉字',
+    md: '很多字。**占了那个位置，人却不在那个位置上。**权力和义务严重不匹配。',
+    bold: true,
+  },
+  { name: '开标记后紧跟中文引号', md: '前文**“引用”加粗**后文', bold: true },
+  { name: '闭合后接句号', md: '前文**加粗**。后文', bold: true },
+  { name: '普通加粗', md: '**正常加粗**', bold: true },
+  { name: '粗斜体', md: '***粗斜***', bold: true },
+  { name: '闭合后有空格', md: '前文**加粗** 后文', bold: true },
+  { name: '行内代码里的星号', md: 'a `**x**` b', bold: false },
+  { name: '两侧带空格的星号', md: 'a ** b', bold: false },
+  { name: '下划线夹字母', md: 'a__b__c', bold: false },
+];
+for (const item of boldCases) {
+  const html = parseMarkdown(item.md);
+  const hasStrong = html.includes('<strong>');
+  if (hasStrong !== item.bold) {
+    problems.push(`加粗用例「${item.name}」${item.bold ? '未' : '错误地'}解析成加粗：${html.slice(0, 120)}`);
+  }
 }
 
 // 复杂内联语法
