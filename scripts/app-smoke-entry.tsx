@@ -147,6 +147,74 @@ try {
   await wait(80);
   expect(!mount.textContent?.includes('全部恢复模板原色'), 'Esc 未关闭配色面板');
 
+  // ---- 排版面板：行高 / 段间距 / 标题样式 / 代码配色 ----
+  const articleRoot = () => mount.querySelector('section[style*="font-family"]') as HTMLElement | null;
+  const clickAria = (label: string) => {
+    const button = Array.from(mount.querySelectorAll('button')).find(
+      (btn) => btn.getAttribute('aria-label') === label,
+    ) as HTMLButtonElement | undefined;
+    button?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    return button;
+  };
+
+  const styleToggle = Array.from(mount.querySelectorAll('button')).find(
+    (btn) => (btn.getAttribute('title') ?? '').includes('段间距'),
+  );
+  expect(Boolean(styleToggle), '缺少「排版」按钮');
+  styleToggle?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await wait(140);
+  expect(text().includes('段间距'), '排版面板未打开');
+  expect(text().includes('行高'), '排版面板缺少行高分组');
+  expect(text().includes('代码配色'), '排版面板缺少代码配色分组');
+
+  expect(Boolean(clickAria('行高1.9')), '排版面板缺少行高 1.9 档');
+  await wait(160);
+  expect(useTypographyStore.getState().lineHeight === 1.9, '行高未写入 store');
+  const lineHeightStyle =
+    Array.from(articleRoot()?.querySelectorAll('p') ?? []).find((node) => node.textContent?.trim())?.getAttribute('style') ??
+    '';
+  expect(lineHeightStyle.includes('line-height:1.9'), `行高未作用到正文：${lineHeightStyle}`);
+
+  expect(Boolean(clickAria('段间距1.15×')), '排版面板缺少段间距档位');
+  await wait(160);
+  expect(useTypographyStore.getState().blockSpacing === 1.15, '段间距未写入 store');
+
+  expect(Boolean(clickAria('二级标题下边框')), '排版面板缺少标题样式预设');
+  await wait(180);
+  expect(useTypographyStore.getState().headingStyles.h2 === 'border-bottom', '标题样式未写入 store');
+  const headingStyle = (articleRoot()?.querySelector('h2') as HTMLElement | null)?.getAttribute('style') ?? '';
+  expect(/border-bottom:2px solid/.test(headingStyle), `标题下边框未作用到预览：${headingStyle}`);
+
+  const codeThemeSelect = mount.querySelector('select[aria-label="代码配色"]') as HTMLSelectElement | null;
+  expect(Boolean(codeThemeSelect), '排版面板缺少代码配色选择器');
+  if (codeThemeSelect) {
+    expect(codeThemeSelect.options.length > 60, `代码配色只有 ${codeThemeSelect.options.length} 项`);
+    codeThemeSelect.value = 'atom-one-dark';
+    codeThemeSelect.dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(180);
+    expect(useTypographyStore.getState().codeThemeId === 'atom-one-dark', '代码配色未写入 store');
+    const preStyle = (articleRoot()?.querySelector('pre') as HTMLElement | null)?.getAttribute('style') ?? '';
+    expect(preStyle.includes('#282c34'), `代码配色没换掉代码块底色：${preStyle}`);
+    const tokenStyle = Array.from(articleRoot()?.querySelectorAll('pre span') ?? [])
+      .map((node) => node.getAttribute('style') ?? '')
+      .find((style) => style.startsWith('color:'));
+    expect(Boolean(tokenStyle), '代码 token 没有内联颜色');
+  }
+
+  const resetParams = Array.from(mount.querySelectorAll('button')).find(
+    (btn) => (btn.textContent ?? '').trim() === '全部恢复默认',
+  ) as HTMLButtonElement | undefined;
+  expect(Boolean(resetParams) && !resetParams?.disabled, '排版面板的「全部恢复默认」不可用');
+  resetParams?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await wait(160);
+  expect(useTypographyStore.getState().lineHeight === 'theme', '恢复默认没有重置行高');
+  expect(useTypographyStore.getState().codeThemeId === 'theme', '恢复默认没有重置代码配色');
+  expect(!(articleRoot()?.querySelector('h2')?.getAttribute('style') ?? '').includes('border-bottom:2px'), '恢复默认后标题仍是描边样式');
+
+  win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await wait(80);
+  expect(!text().includes('段间距'), 'Esc 未关闭排版面板');
+
   // 清空正文 → 空态与复制按钮禁用
   useTypographyStore.getState().setMarkdown('');
   await wait(160);
@@ -323,6 +391,82 @@ try {
     '子域名根未配置父站时不应出现返回按钮',
   );
 
+  // ---- 编辑区 Markdown 高亮层：与 textarea 对齐、组词时让位 ----
+  const editorLayer = mount.querySelector('.md-editor-highlight') as HTMLElement | null;
+  expect(Boolean(editorLayer), '缺少 Markdown 高亮层');
+  if (editorLayer && textarea) {
+    const setValue = (value: string) => {
+      valueSetter?.call(textarea, value);
+      textarea.dispatchEvent(new win.Event('input', { bubbles: true }));
+    };
+    setValue('# 标题\n\n正文 **加粗** 和 `code`\n\n```js\nconst a = 1;\n```');
+    await wait(160);
+    expect(editorLayer.innerHTML.includes('mh-heading'), '高亮层没有解析出标题');
+    expect(editorLayer.innerHTML.includes('mh-strong'), '高亮层没有解析出加粗');
+    expect(editorLayer.innerHTML.includes('mh-code-block'), '高亮层没有解析代码块');
+
+    expect(textarea.className.includes('text-transparent'), 'textarea 文字没有透明（会和高亮层重影）');
+    expect(textarea.className.includes('caret-zinc-800'), 'textarea 没设光标颜色（透明字下光标会消失）');
+
+    textarea.scrollTop = 40;
+    textarea.dispatchEvent(new win.Event('scroll', { bubbles: true }));
+    await wait(80);
+    expect(editorLayer.scrollTop === 40, '高亮层没有跟随 textarea 滚动');
+
+    textarea.dispatchEvent(new win.Event('compositionstart', { bubbles: true }));
+    await wait(80);
+    expect(textarea.className.includes('text-zinc-800'), '输入法组词时 textarea 仍未显字');
+    expect(editorLayer.style.opacity === '0', '输入法组词时高亮层没有让位');
+    textarea.dispatchEvent(new win.Event('compositionend', { bubbles: true }));
+    await wait(80);
+    expect(textarea.className.includes('text-transparent'), '组词结束后 textarea 没有恢复透明');
+    expect(editorLayer.style.opacity === '1', '组词结束后高亮层没有恢复');
+  }
+
+  // ---- 复制链路：SVG 清洗与占位处理 ----
+  const { buildCopyBundle } = await import('../src/lib/copy-html');
+  const { sanitizeMermaidSvgs } = await import('../src/lib/wechat-svg');
+
+  const fixture = win.document.createElement('div');
+  fixture.innerHTML = `
+    <svg width="900" viewBox="0 0 900 120" class="flowchart" id="md-mermaid-1" role="graphics-document">
+      <defs><marker id="m1"><path d="M0,0 L6,3 L0,6"/></marker>
+        <linearGradient id="g1"><stop offset="0" stop-color="#111111"/><stop offset="1" stop-color="#222222"/></linearGradient>
+      </defs>
+      <g style="fill:url(#g1)"><rect x="0" y="0" width="80" height="40" fill="url(#g1)"/></g>
+      <foreignObject x="10" y="10" width="90" height="20"><div style="color:#333">标签</div></foreignObject>
+      <text dominant-baseline="central" font-size="6">小字</text>
+    </svg>`;
+  mount.appendChild(fixture);
+  sanitizeMermaidSvgs(fixture, 677);
+  const cleaned = fixture.querySelector('svg');
+  expect(Boolean(cleaned), '清洗后 svg 消失');
+  if (cleaned) {
+    expect(!fixture.querySelector('defs'), '清洗后仍残留 defs');
+    expect(!cleaned.getAttribute('id') && !cleaned.getAttribute('class'), '清洗后仍残留 id / class');
+    expect(!cleaned.getAttribute('role'), '清洗后仍残留 role');
+    expect(cleaned.getAttribute('width') === '677', `超宽图未缩到列宽：${cleaned.getAttribute('width')}`);
+    expect(!fixture.innerHTML.includes('foreignObject'), '清洗后仍残留 foreignObject');
+    expect(!/url\(#/.test(fixture.innerHTML), '清洗后仍有未解析的 url(#id)');
+    const smallText = fixture.querySelector('text');
+    expect(Number(smallText?.getAttribute('font-size')) >= 9, '清洗后字号没有下限');
+    expect(!/dominant-baseline/.test(fixture.innerHTML), '清洗后仍残留 dominant-baseline');
+  }
+  fixture.remove();
+
+  useTypographyStore.getState().setMarkdown('```mermaid\nflowchart LR\n  A[甲] --> B[乙]\n```\n\n正文段落。');
+  await wait(220);
+  const copyRoot = articleRoot();
+  const bundle = copyRoot ? buildCopyBundle(copyRoot) : null;
+  expect(Boolean(bundle), '复制时找不到预览根节点');
+  if (bundle) {
+    expect(!bundle.html.includes('data-mermaid'), '复制产物残留 data-mermaid');
+    expect(!bundle.html.includes('image/svg'), '复制产物残留占位');
+    expect(bundle.html.includes('正文段落'), '复制产物丢了正文');
+    expect(bundle.text.includes('正文段落'), '纯文本副本丢了正文');
+    expect(bundle.dropped === 1, `jsdom 下无法渲染的图应该被丢掉，实际 dropped=${bundle.dropped}`);
+  }
+
   // 持久化：storage key 与原站一致，且字段齐全
   const raw = win.localStorage.getItem('typography');
   expect(Boolean(raw), '未写入 localStorage');
@@ -337,6 +481,11 @@ try {
       'fontFamilyId',
       'mainColor',
       'partColors',
+      'codeThemeId',
+      'lineHeight',
+      'blockSpacing',
+      'blockquoteBackground',
+      'headingStyles',
     ]) {
       expect(key in persisted, `持久化缺少字段 ${key}`);
     }
@@ -354,4 +503,4 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log('[app-smoke] 通过：首屏渲染、主题菜单筛选/选择、配色面板开关与换色均正常');
+console.log('[app-smoke] 通过：首屏、主题菜单、配色面板、排版面板、SVG 清洗与复制链路均正常');

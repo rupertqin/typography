@@ -1,12 +1,18 @@
+import { resolveCodeTheme } from './code-themes';
 import { parseMarkdown } from './markdown';
-import { applyColorOverrides, hasColorOverrides } from './recolor';
+import { applyColorOverrides, hasColorOverrides, isHexColor, rgbaFromHex } from './recolor';
 import {
   PART_SELECTORS,
   PRE_BAR_DOTS,
   RENDER_ONLY_ATTRS,
   STYLE_KEY_BY_TAG,
+  applyBlockSpacing,
+  applyBlockquoteBackground,
   applyCard,
+  applyCodeChrome,
   applyFontFamily,
+  applyHeadingStyles,
+  applyLineHeight,
   applyListMarks,
   isStructural,
   normalizeFootnotes,
@@ -15,7 +21,7 @@ import {
   scaleFontSizes,
   stripFontFamilyQuotes,
 } from './render-helpers';
-import type { ColorOverrides, Theme } from './types';
+import type { ColorOverrides, Theme, ThemeParams } from './types';
 
 export interface RenderOptions {
   /** 配色重映射 */
@@ -26,6 +32,10 @@ export interface RenderOptions {
   fontFamily?: string;
   /** 正文字重：细体 / 极细靠字重实现，只作用在没写死 font-weight 的元素上 */
   fontWeight?: number;
+  /** 代码配色 id；缺省 / 'theme' 表示沿用主题自带的调色板 */
+  codeTheme?: string;
+  /** 版式参数：行高 / 段间距 / 引用底色 / 标题样式，默认值等同不传 */
+  params?: ThemeParams;
 }
 
 /**
@@ -35,7 +45,7 @@ export interface RenderOptions {
 export function renderMarkdown(markdown: string, theme: Theme, options: RenderOptions = {}): string {
   if (typeof DOMParser === 'undefined') return '';
 
-  const { fontScale = 1, fontFamily = '', fontWeight } = options;
+  const { fontScale = 1, fontFamily = '', fontWeight, params } = options;
   const overrides: ColorOverrides = options.colors ?? { main: '', parts: {} };
   const doc = new DOMParser().parseFromString(`<section>${parseMarkdown(markdown)}</section>`, 'text/html');
   const root = doc.body.firstElementChild as Element;
@@ -54,10 +64,13 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
   }
   blanks.forEach((node) => node.remove());
 
-  // 代码高亮 class → 主题内联色板（公众号会丢掉 class）
+  // 代码高亮 class → 内联色板（公众号会丢掉 class）。
+  // 选了代码配色就用它，否则回落到主题自带的 hljs 调色板。
+  const codePalette = resolveCodeTheme(options.codeTheme, theme);
+  const codeTokens = codePalette?.tokens ?? theme.hljs;
   root.querySelectorAll('[class*="hljs-"]').forEach((node) => {
     const token = Array.from(node.classList).find((name) => name.startsWith('hljs-'));
-    const style = token ? theme.hljs[token.slice(5)] : undefined;
+    const style = token ? codeTokens[token.slice(5)] : undefined;
     node.removeAttribute('class');
     if (style) node.setAttribute('style', style);
   });
@@ -85,6 +98,9 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
     const style = styles[key];
     if (style) node.setAttribute('style', style + (node.getAttribute('style') || ''));
   });
+
+  // 代码配色的底色/正文色要压过主题自带的 pre / preCode，否则深浅配色会打架
+  if (codePalette) applyCodeChrome(root, codePalette);
 
   for (const [selector, part] of PART_SELECTORS) {
     root.querySelectorAll(selector).forEach((node) => node.setAttribute('data-part', part));
@@ -134,6 +150,18 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
   if (hasColorOverrides(overrides)) {
     root.setAttribute('data-part-self', 'page');
     applyColorOverrides(root, theme.accent, overrides);
+  }
+
+  // 版式参数放在配色重映射之后：用户显式选的标题描边/底色要压过主题与重映射的结果
+  if (params) {
+    const accent = isHexColor(overrides.main) ? overrides.main : theme.accent;
+    applyHeadingStyles(root, params.headingStyles, accent);
+    applyBlockSpacing(root, params.blockSpacing);
+    applyLineHeight(root, params.lineHeight);
+    // 'accent' 是「主题色浅底」的哨兵值：换主色/换主题时按当前主色重算，不写死 rgba
+    const quoteBackground =
+      params.blockquoteBackground === 'accent' ? rgbaFromHex(accent, 0.08) : params.blockquoteBackground;
+    applyBlockquoteBackground(root, quoteBackground);
   }
 
   // 整体字号放在最后：配色重映射会重写 style，先缩放会被覆盖

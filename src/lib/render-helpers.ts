@@ -1,4 +1,4 @@
-import type { Theme, ThemeCardDecor } from './types';
+import type { HeadingStyleType, Theme, ThemeCardDecor } from './types';
 
 /** 标签 → 主题样式键（h5/h6 复用 h4 的样式） */
 export const STYLE_KEY_BY_TAG: Record<string, string> = {
@@ -166,6 +166,63 @@ export function applyListMarks(root: Element, theme: Theme, doc: Document): void
   });
 }
 
+/** 内联样式拆成声明表：顺序保留，值里的冒号（data: / url()）不误切 */
+function splitStyle(style: string): Array<[string, string]> {
+  const declarations: Array<[string, string]> = [];
+  for (const part of style.split(';')) {
+    const colon = part.indexOf(':');
+    if (colon < 0) continue;
+    const prop = part.slice(0, colon).trim().toLowerCase();
+    const value = part.slice(colon + 1).trim();
+    if (prop && value) declarations.push([prop, value]);
+  }
+  return declarations;
+}
+
+function joinStyle(declarations: Array<[string, string]>): string {
+  return declarations.map(([prop, value]) => `${prop}:${value};`).join('');
+}
+
+/** 读一条声明（主题的内联样式是唯一真相，很多判断要按当前值来） */
+export function getDecl(style: string | null, prop: string): string | undefined {
+  if (!style) return undefined;
+  return splitStyle(style).find(([name]) => name === prop)?.[1];
+}
+
+/** 覆盖一条声明：保留其余声明的原有顺序，位置沿用被替换的那条 */
+export function setDecl(style: string | null, prop: string, value: string): string {
+  const declarations = splitStyle(style ?? '');
+  const index = declarations.findIndex(([name]) => name === prop);
+  if (index >= 0) {
+    declarations[index] = [prop, value];
+    return joinStyle(declarations);
+  }
+  declarations.push([prop, value]);
+  return joinStyle(declarations);
+}
+
+/** 删掉一条（或一组前缀相同的）声明 */
+export function dropDecl(style: string | null, props: string | string[]): string {
+  const drop = new Set(Array.isArray(props) ? props : [props]);
+  return joinStyle(splitStyle(style ?? '').filter(([name]) => !drop.has(name)));
+}
+
+/**
+ * 代码配色的底色与正文色：只动颜色相关的声明，padding / 字体 / 圆角仍由主题决定。
+ * preCode 里的 color 也要一起换，否则深色配色配浅色正文会看不清。
+ */
+export function applyCodeChrome(
+  root: Element,
+  palette: { foreground: string; background: string },
+): void {
+  root.querySelectorAll('pre').forEach((pre) => {
+    if (palette.background) pre.setAttribute('style', setDecl(pre.getAttribute('style'), 'background', palette.background));
+  });
+  root.querySelectorAll('pre > code').forEach((code) => {
+    if (palette.foreground) code.setAttribute('style', setDecl(code.getAttribute('style'), 'color', palette.foreground));
+  });
+}
+
 /** 内联样式里的绝对字号；百分比字号（75%/90%）会随父级自动跟着缩放，无需处理 */
 const FONT_SIZE_PX = /font-size\s*:\s*([\d.]+)px/gi;
 
@@ -235,6 +292,122 @@ export function applyFontFamily(root: Element, doc: Document, stack: string, wei
   if (wrapperDecl) wrapper.setAttribute('style', wrapperDecl);
   while (root.firstChild) wrapper.appendChild(root.firstChild);
   root.appendChild(wrapper);
+}
+
+/* ------------------------------ 版式参数层 ------------------------------ */
+/**
+ * 这一层全部是「改写主题已经写死的内联声明」，不是加 CSS 变量：
+ * 主题把 line-height 写死上百处、margin 写死两百多处，只改根节点继承不生效。
+ */
+
+/** 承载正文节奏的块级元素（行高/段间距只动这些，避免破坏装饰字块与代码块） */
+const RHYTHM_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, li, td, th, img';
+
+/** 长度值缩放：保留单位，最多两位小数，避免 em 值算出 1.4600000000000002 这种 */
+function scaleLength(value: string, factor: number): string {
+  const match = /^(-?[\d.]+)([a-z%]*)$/i.exec(value.trim());
+  if (!match) return value;
+  const size = Number(match[1]);
+  if (!Number.isFinite(size)) return value;
+  const scaled = Math.round(size * factor * 100) / 100;
+  return `${scaled}${match[2]}`;
+}
+
+/** margin / padding 简写按「上下缩放、左右保留」处理，保住主题的左右留白 */
+function scaleShorthand(value: string, factor: number): string {
+  const parts = value.trim().split(/\s+/);
+  if (parts.length === 1) return scaleLength(parts[0], factor);
+  if (parts.length === 2) return `${scaleLength(parts[0], factor)} ${parts[1]}`;
+  if (parts.length === 3) return `${scaleLength(parts[0], factor)} ${parts[1]} ${scaleLength(parts[2], factor)}`;
+  if (parts.length === 4)
+    return `${scaleLength(parts[0], factor)} ${parts[1]} ${scaleLength(parts[2], factor)} ${parts[3]}`;
+  return value;
+}
+
+function rhythmNodes(root: Element): Element[] {
+  return [root, ...Array.from(root.querySelectorAll(RHYTHM_SELECTOR))];
+}
+
+/** 段间距：在主题原有节奏上整体缩放上下外边距，标题仍比正文更疏 */
+export function applyBlockSpacing(root: Element, factor: number): void {
+  if (!Number.isFinite(factor) || factor <= 0 || factor === 1) return;
+
+  for (const node of rhythmNodes(root)) {
+    if (node.tagName === 'PRE' || node.closest('pre')) continue;
+    const style = node.getAttribute('style');
+    if (!style) continue;
+
+    const next = splitStyle(style).map(([prop, value]): [string, string] => {
+      if (prop === 'margin' || prop === 'margin-top' || prop === 'margin-bottom') {
+        return [prop, scaleShorthand(value, factor)];
+      }
+      return [prop, value];
+    });
+    node.setAttribute('style', joinStyle(next));
+  }
+}
+
+/**
+ * 行高：改写块级元素上的 line-height。
+ * 不能只改主题根节点——有的主题把 line-height 写死在 h2/li 上，继承不到；
+ * 所以文本块统一写一遍。跳过 pre/code（代码行距跟着正文变会糊成一团）
+ * 与装饰 span（主题用 line-height:1 对齐描边，改了会错位）。
+ */
+export function applyLineHeight(root: Element, value: 'theme' | number): void {
+  if (value === 'theme' || !Number.isFinite(Number(value))) return;
+  const lineHeight = String(value);
+
+  for (const node of rhythmNodes(root)) {
+    if (node.tagName === 'PRE' || node.closest('pre')) continue;
+    node.setAttribute('style', setDecl(node.getAttribute('style'), 'line-height', lineHeight));
+  }
+}
+
+/** 引用底色：覆盖 blockquote 的 background，正文段落若自带底色一起压平 */
+export function applyBlockquoteBackground(root: Element, background: string): void {
+  if (!background) return;
+  root.querySelectorAll('blockquote').forEach((quote) => {
+    quote.setAttribute('style', setDecl(quote.getAttribute('style'), 'background', background));
+    quote.querySelectorAll(':scope > p').forEach((paragraph) => {
+      if (!getDecl(paragraph.getAttribute('style'), 'background')) return;
+      paragraph.setAttribute('style', setDecl(paragraph.getAttribute('style'), 'background', 'transparent'));
+    });
+  });
+}
+
+const LEVEL_BORDER_WIDTH: Record<string, string> = { borderBottom: '2px', borderLeft: '4px' };
+
+/**
+ * 标题样式预设：下边框 / 左边框 / 主题色文字。
+ * 描边类预设会把标题从「色块标题」掰回左对齐块级元素——带底色的 h2 加左边框只会糊成一团。
+ */
+export function applyHeadingStyles(
+  root: Element,
+  styles: Partial<Record<'h1' | 'h2' | 'h3', HeadingStyleType>>,
+  accent: string,
+): void {
+  (['h1', 'h2', 'h3'] as const).forEach((level) => {
+    const style = styles[level];
+    if (!style || style === 'default') return;
+
+    root.querySelectorAll(level).forEach((heading) => {
+      let next = dropDecl(heading.getAttribute('style'), ['border', 'border-top', 'border-bottom', 'border-left', 'border-right']);
+
+      if (style === 'color-only') {
+        heading.setAttribute('style', setDecl(next, 'color', accent));
+        return;
+      }
+
+      const isBottom = style === 'border-bottom';
+      next = setDecl(next, 'display', 'block');
+      next = setDecl(next, 'text-align', 'left');
+      next = setDecl(next, 'background', 'transparent');
+      next = setDecl(next, 'color', accent);
+      next = setDecl(next, isBottom ? 'border-bottom' : 'border-left', `${LEVEL_BORDER_WIDTH[isBottom ? 'borderBottom' : 'borderLeft']} solid ${accent}`);
+      next = setDecl(next, isBottom ? 'padding-bottom' : 'padding-left', isBottom ? '0.3em' : '10px');
+      heading.setAttribute('style', next);
+    });
+  });
 }
 
 /** 卡片流主题：把正文按 h2 分组成卡片 */

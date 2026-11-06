@@ -1,8 +1,10 @@
 import type { RefObject } from 'react';
 import { Eye } from 'lucide-react';
 import { FONT_FAMILIES, FONT_SCALES, ZOOM_LEVELS } from '../../lib/constants';
+import { isHexColor } from '../../lib/recolor';
 import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/types';
+import { useMermaidHydration } from '../../lib/useMermaidHydration';
 import ToolPanel from '../shell/ToolPanel';
 import ThemePicker from '../theme/ThemePicker';
 
@@ -34,8 +36,17 @@ export default function PreviewPanel({
   const setFontScale = useTypographyStore((state) => state.setFontScale);
   const fontFamilyId = useTypographyStore((state) => state.fontFamilyId);
   const setFontFamilyId = useTypographyStore((state) => state.setFontFamilyId);
+  const mainColor = useTypographyStore((state) => state.mainColor);
   const baseFonts = FONT_FAMILIES.filter((font) => !font.iosOnly);
   const iosFonts = FONT_FAMILIES.filter((font) => font.iosOnly);
+
+  const fontPreset = FONT_FAMILIES.find((font) => font.id === fontFamilyId);
+  // 图表配色跟随主色与正文字体：预览里看到的图，复制出去也是同一套
+  useMermaidHydration(articleRef, {
+    accent: isHexColor(mainColor) ? mainColor : theme.accent,
+    fontFamily: fontPreset?.stack ?? '',
+    revision: html,
+  });
 
   return (
     <ToolPanel

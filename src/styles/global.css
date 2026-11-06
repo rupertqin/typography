@@ -26,6 +26,116 @@
   }
 }
 
+@layer components {
+  /* 预览区里的 Mermaid 容器：白底卡片 + 居中 + 宽图横向滚动。
+     图内文字不走文章主题的排版规则，否则标题的 letter-spacing / 颜色会污染标签。 */
+  .md-mermaid {
+    margin: 1.2em 0;
+    padding: 12px 10px;
+    overflow-x: auto;
+    border: 1px solid #e9e9ec;
+    border-radius: 8px;
+    background: #fff;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .md-mermaid[data-state='loading'],
+  .md-mermaid[data-state='rendering'] {
+    border-style: dashed;
+    color: #a1a1aa;
+    font-size: 13px;
+  }
+
+  .md-mermaid[data-state='error'] {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 12px;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .md-mermaid svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  .md-mermaid .nodeLabel,
+  .md-mermaid .edgeLabel {
+    letter-spacing: 0;
+    color: inherit;
+  }
+
+  /* 编辑区的 Markdown 高亮层：只换颜色，不动字重/斜体——
+     字宽一变，这一层和 textarea 的折行就对不上，光标会跑偏。 */
+  .md-editor-highlight {
+    color: #3f3f46;
+  }
+
+  .md-editor-highlight .mh-heading {
+    color: var(--mh-accent, #047857);
+  }
+
+  .md-editor-highlight .mh-marker {
+    color: #a1a1aa;
+  }
+
+  .md-editor-highlight .mh-strong {
+    color: #18181b;
+  }
+
+  .md-editor-highlight .mh-em {
+    color: #52525b;
+  }
+
+  .md-editor-highlight .mh-del {
+    color: #a1a1aa;
+  }
+
+  .md-editor-highlight .mh-quote {
+    color: #71717a;
+  }
+
+  .md-editor-highlight .mh-code-inline {
+    color: #b45309;
+  }
+
+  .md-editor-highlight .mh-code-block {
+    color: #0f766e;
+  }
+
+  .md-editor-highlight .mh-fence {
+    color: #a1a1aa;
+  }
+
+  .md-editor-highlight .mh-link,
+  .md-editor-highlight .mh-url {
+    color: #576b95;
+  }
+
+  .md-editor-highlight .mh-image {
+    color: #0e7490;
+  }
+
+  .md-editor-highlight .mh-footnote {
+    color: #7c3aed;
+  }
+
+  .md-editor-highlight .mh-table,
+  .md-editor-highlight .mh-list-text {
+    color: #3f3f46;
+  }
+
+  .md-editor-highlight .mh-hr,
+  .md-editor-highlight .mh-html {
+    color: #a1a1aa;
+  }
+}
+
 @layer utilities {
   .thin-scrollbar {
     scrollbar-width: thin;

@@ -1,56 +1,9 @@
 import { useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
-import { GripHorizontal, Undo2, X } from 'lucide-react';
+import { Undo2 } from 'lucide-react';
 import { MAIN_COLOR_PRESETS, PART_COLOR_PRESETS } from '../../lib/constants';
 import { availableColorParts, isHexColor } from '../../lib/recolor';
 import { useTypographyStore } from '../../lib/store';
 import type { ColorPreset, Theme } from '../../lib/types';
-
-interface ColorPanelHeaderProps {
-  dragged: boolean;
-  onDragStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  onResetPosition: () => void;
-  onClose: () => void;
-}
-
-export function ColorPanelHeader({ dragged, onDragStart, onResetPosition, onClose }: ColorPanelHeaderProps) {
-  return (
-    <div
-      onPointerDown={onDragStart}
-      className="flex shrink-0 cursor-move select-none items-center gap-1.5 border-b border-zinc-100 py-1.5 pl-3 pr-1.5"
-    >
-      <GripHorizontal size={14} className="text-zinc-300" />
-      <span className="text-sm font-medium text-zinc-700">配色</span>
-      <span className="truncate text-[11px] text-zinc-400">
-        {dragged ? '点文章不会关闭，边调边看' : '按住这里可拖到一边，不挡文章'}
-      </span>
-      <span
-        className="ml-auto flex shrink-0 items-center"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        {dragged && (
-          <button
-            type="button"
-            onClick={onResetPosition}
-            className="rounded px-1.5 py-0.5 text-[11px] text-zinc-400 hover:text-emerald-700"
-            title="放回按钮下方"
-          >
-            归位
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded p-1 text-zinc-400 hover:text-zinc-700"
-          title="关闭（Esc）"
-          aria-label="关闭配色面板"
-        >
-          <X size={14} />
-        </button>
-      </span>
-    </div>
-  );
-}
 
 function sameColor(left: string, right: string) {
   return left.toLowerCase() === right.toLowerCase();

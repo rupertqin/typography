@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, Palette, Shuffle, Undo2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Palette, Shuffle, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { FOLLOW_THEME_CODE } from '../../lib/code-themes';
 import { ARTICLE_TYPES } from '../../lib/constants';
 import { THEMES } from '../../lib/themes.generated.js';
 import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/types';
-import ColorPanel, { ColorPanelHeader } from '../color/ColorPanel';
+import ColorPanel from '../color/ColorPanel';
+import FloatingPanel from '../shell/FloatingPanel';
+import type { DragPosition } from '../shell/FloatingPanel';
+import TypographyPanel from '../style/TypographyPanel';
 import ThemeMenu from './ThemeMenu';
 
 const ICON_BUTTON =
@@ -20,13 +23,22 @@ export default function ThemePicker({ theme, inHeader = false }: { theme: Theme;
   const setArticleType = useTypographyStore((state) => state.setArticleType);
   const mainColor = useTypographyStore((state) => state.mainColor);
   const partColorCount = useTypographyStore((state) => Object.keys(state.partColors).length);
+  // 版式参数有没有被改过：按钮上的小圆点用，取值是布尔，不会触发 zustand 的重复渲染
+  const paramsDirty = useTypographyStore(
+    (state) =>
+      state.lineHeight !== 'theme' ||
+      state.blockSpacing !== 1 ||
+      Boolean(state.blockquoteBackground) ||
+      Object.keys(state.headingStyles).length > 0 ||
+      state.codeThemeId !== FOLLOW_THEME_CODE,
+  );
 
-  const [panel, setPanel] = useState<null | 'theme' | 'color'>(null);
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [panel, setPanel] = useState<null | 'theme' | 'color' | 'style'>(null);
+  const [dragPos, setDragPos] = useState<DragPosition | null>(null);
   const [revertTheme, setRevertTheme] = useState<Theme | null>(null);
 
   const wrapper = useRef<HTMLDivElement>(null);
-  const colorBox = useRef<HTMLDivElement>(null);
+  const panelBox = useRef<HTMLDivElement>(null);
   const recents = useRef<string[]>([]);
 
   const typeName = ARTICLE_TYPES.find((type) => type.id === articleType)?.name;
@@ -47,8 +59,9 @@ export default function ThemePicker({ theme, inHeader = false }: { theme: Theme;
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (wrapper.current?.contains(target)) return;
-      if (colorBox.current?.contains(target)) return;
-      if (panel === 'color' && dragPos) return;
+      if (panelBox.current?.contains(target)) return;
+      // 拖走的浮层点文章不关闭，方便边调边看
+      if (dragPos) return;
       setPanel(null);
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -68,6 +81,12 @@ export default function ThemePicker({ theme, inHeader = false }: { theme: Theme;
     setRevertTheme(null);
   };
 
+  /** 开/关浮层：换面板时把拖走的位置复位，避免新面板出现在上一块的位置 */
+  const togglePanel = (next: 'theme' | 'color' | 'style') => {
+    setPanel((current) => (current === next ? null : next));
+    setDragPos(null);
+  };
+
   const step = (delta: number) => {
     const index = themes.findIndex((item) => item.id === theme.id);
     const base = index < 0 ? 0 : index;
@@ -85,7 +104,7 @@ export default function ThemePicker({ theme, inHeader = false }: { theme: Theme;
   };
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = colorBox.current?.getBoundingClientRect();
+    const rect = panelBox.current?.getBoundingClientRect();
     if (event.button !== 0 || !rect) return;
     event.preventDefault();
     const offsetX = event.clientX - rect.left;
@@ -122,7 +141,7 @@ export default function ThemePicker({ theme, inHeader = false }: { theme: Theme;
 
         <button
           type="button"
-          onClick={() => setPanel((current) => (current === 'theme' ? null : 'theme'))}
+          onClick={() => togglePanel('theme')}
           aria-expanded={panel === 'theme'}
           className={`inline-flex w-32 shrink-0 items-center gap-2 rounded-lg bg-white py-1.5 pl-2.5 pr-2 text-sm ring-1 transition-all sm:w-40 ${
             panel === 'theme' ? 'ring-emerald-300' : 'ring-zinc-200 hover:ring-emerald-300'
@@ -172,7 +191,7 @@ export default function ThemePicker({ theme, inHeader = false }: { theme: Theme;
 
         <button
           type="button"
-          onClick={() => setPanel((current) => (current === 'color' ? null : 'color'))}
+          onClick={() => togglePanel('color')}
           aria-expanded={panel === 'color'}
           title="换主色，或单独调某几处的颜色"
           className={`ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-2 py-1.5 text-sm text-zinc-600 ring-1 transition-all hover:text-emerald-700 sm:px-2.5 ${
@@ -188,48 +207,36 @@ export default function ThemePicker({ theme, inHeader = false }: { theme: Theme;
             />
           )}
         </button>
+
+        <button
+          type="button"
+          onClick={() => togglePanel('style')}
+          aria-expanded={panel === 'style'}
+          title="调行高、段间距、标题样式与代码配色"
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-2 py-1.5 text-sm text-zinc-600 ring-1 transition-all hover:text-emerald-700 sm:px-2.5 ${
+            panel === 'style' ? 'ring-emerald-300' : 'ring-zinc-200 hover:ring-emerald-300'
+          }`}
+        >
+          <SlidersHorizontal size={14} />
+          <span className="hidden sm:inline">排版</span>
+          {paramsDirty && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+        </button>
       </div>
 
-      {panel === 'color' && !inHeader && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-2 flex max-h-[min(68vh,560px)] flex-col rounded-xl bg-white shadow-xl ring-1 ring-zinc-200">
-          {colorBody}
-        </div>
-      )}
-
-      {panel === 'color' && inHeader && !dragPos && (
-        <div
-          ref={colorBox}
-          className="absolute right-0 top-full z-20 mt-2 flex max-h-[min(68vh,560px)] w-[min(440px,calc(100vw-3rem))] flex-col rounded-xl bg-white shadow-xl ring-1 ring-zinc-200"
+      {(panel === 'color' || panel === 'style') && (
+        <FloatingPanel
+          title={panel === 'color' ? '配色' : '排版'}
+          hint="按住标题栏可拖到一边，不挡文章"
+          variant={inHeader ? 'anchored' : 'inline'}
+          dragPos={inHeader ? dragPos : null}
+          onDragStart={startDrag}
+          onResetPosition={() => setDragPos(null)}
+          onClose={() => setPanel(null)}
+          containerRef={panelBox}
         >
-          <ColorPanelHeader
-            dragged={false}
-            onDragStart={startDrag}
-            onResetPosition={() => setDragPos(null)}
-            onClose={() => setPanel(null)}
-          />
-          {colorBody}
-        </div>
+          {panel === 'color' ? colorBody : <TypographyPanel theme={theme} />}
+        </FloatingPanel>
       )}
-
-      {panel === 'color' &&
-        inHeader &&
-        dragPos &&
-        createPortal(
-          <div
-            ref={colorBox}
-            style={{ left: dragPos.x, top: dragPos.y }}
-            className="fixed z-50 flex max-h-[min(68vh,560px)] w-[min(440px,calc(100vw-3rem))] flex-col rounded-xl bg-white shadow-2xl ring-1 ring-zinc-200"
-          >
-            <ColorPanelHeader
-              dragged
-              onDragStart={startDrag}
-              onResetPosition={() => setDragPos(null)}
-              onClose={() => setPanel(null)}
-            />
-            {colorBody}
-          </div>,
-          document.body,
-        )}
 
       {panel === 'theme' && (
         <ThemeMenu

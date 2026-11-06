@@ -92,6 +92,12 @@ function rgbToCss([r, g, b]: RGB, alpha: number): string {
   return `#${[r, g, b].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
 }
 
+/** 主色的浅底：引用块「主题色浅底」这类选项要按当前主色算，不能写死 */
+export function rgbaFromHex(hex: string, alpha: number): string {
+  if (!isHexColor(hex)) return '';
+  return rgbToCss(hexToRgb(hex), alpha);
+}
+
 /** 把源明度按「源 → 目标」映射，保留原图层的明暗层次 */
 function mapLightness(value: number, from: number, to: number): number {
   if (value <= from) return from === 0 ? value : (value * to) / from;

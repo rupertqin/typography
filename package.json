@@ -9,9 +9,10 @@
     "build": "astro build && node scripts/relativize.mjs",
     "preview": "astro preview",
     "extract:themes": "node scripts/extract-themes.mjs",
+    "extract:code-themes": "node scripts/generate-code-themes.mjs",
     "check:themes": "node scripts/check-themes.mjs",
     "smoke": "node scripts/render-smoke.mjs && node scripts/app-smoke.mjs",
-    "verify": "npm run extract:themes && npm run check:themes && npm run smoke && npm run build",
+    "verify": "npm run extract:themes && npm run extract:code-themes && npm run check:themes && npm run smoke && npm run build",
     "deploy:pages": "npm run build && wrangler pages deploy dist --project-name=typography --branch=main --commit-dirty=true"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.475.0",
     "marked": "^15.0.7",
+    "mermaid": "^12.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.3"

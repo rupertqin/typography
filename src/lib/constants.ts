@@ -55,6 +55,46 @@ export const PART_COLOR_PRESETS: ColorPreset[] = [
 /** 预览缩放档位 */
 export const ZOOM_LEVELS = [1, 0.75, 0.5];
 
+/** 行高档位：'theme' 表示沿用每套主题自己的节奏 */
+export const LINE_HEIGHT_OPTIONS: Array<{ value: 'theme' | number; label: string; hint: string }> = [
+  { value: 'theme', label: '主题', hint: '默认' },
+  { value: 1.5, label: '1.5', hint: '紧凑' },
+  { value: 1.65, label: '1.65', hint: '稍紧' },
+  { value: 1.75, label: '1.75', hint: '推荐' },
+  { value: 1.9, label: '1.9', hint: '稍松' },
+  { value: 2.05, label: '2.05', hint: '宽松' },
+];
+
+/** 段间距档位：倍数乘在主题已有的上下边距上，标题仍比正文更疏 */
+export const BLOCK_SPACING_OPTIONS: Array<{ value: number; label: string; hint: string }> = [
+  { value: 0.75, label: '0.75×', hint: '紧凑' },
+  { value: 0.9, label: '0.9×', hint: '稍紧' },
+  { value: 1, label: '1×', hint: '默认' },
+  { value: 1.15, label: '1.15×', hint: '稍松' },
+  { value: 1.35, label: '1.35×', hint: '宽松' },
+];
+
+/** 标题样式预设（一级/二级/三级各自可选） */
+export const HEADING_STYLE_OPTIONS = [
+  { value: 'default', label: '默认' },
+  { value: 'color-only', label: '主题色文字' },
+  { value: 'border-bottom', label: '下边框' },
+  { value: 'border-left', label: '左边框' },
+] as const;
+
+/** 链接色：'' = 跟随主题，其余写进 partColors.link */
+export const LINK_COLOR_OPTIONS: ColorPreset[] = [
+  { color: '', name: '跟随主题' },
+  { color: '#576b95', name: '微信蓝' },
+];
+
+/** 引用底色：'' = 跟随主题，'accent' = 按当前主色算的浅底 */
+export const BLOCKQUOTE_BG_OPTIONS = [
+  { value: '', label: '跟随主题' },
+  { value: 'transparent', label: '无背景' },
+  { value: 'accent', label: '主题色浅底' },
+] as const;
+
 /** 整体字号档位：按比例缩放主题里的 px 字号，复制到公众号后同样生效 */
 export const FONT_SCALES = [
   { value: 0.8, label: "极小" },
@@ -169,6 +209,7 @@ export const INSERT_ACTIONS: InsertAction[] = [
   { id: "bold", title: "加粗", wrap: ["**", "**"], placeholder: "加粗文字" },
   { id: "quote", title: "引用", line: "> 引用内容" },
   { id: "code", title: "代码块", line: "```javascript\n// 代码\n```" },
+  { id: "mermaid", title: "图表", line: "```mermaid\nflowchart LR\n  A[开始] --> B[结束]\n```" },
   { id: "image", title: "图片位置", line: "![图片说明](图片)" },
   { id: "hr", title: "分割线", line: "---" },
 ];

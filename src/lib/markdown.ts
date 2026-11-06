@@ -1,46 +1,7 @@
 import { Marked } from 'marked';
-import hljs from 'highlight.js/lib/core';
 
-import bash from 'highlight.js/lib/languages/bash';
-import cpp from 'highlight.js/lib/languages/cpp';
-import csharp from 'highlight.js/lib/languages/csharp';
-import css from 'highlight.js/lib/languages/css';
-import go from 'highlight.js/lib/languages/go';
-import java from 'highlight.js/lib/languages/java';
-import javascript from 'highlight.js/lib/languages/javascript';
-import json from 'highlight.js/lib/languages/json';
-import markdown from 'highlight.js/lib/languages/markdown';
-import php from 'highlight.js/lib/languages/php';
-import python from 'highlight.js/lib/languages/python';
-import rust from 'highlight.js/lib/languages/rust';
-import sql from 'highlight.js/lib/languages/sql';
-import typescript from 'highlight.js/lib/languages/typescript';
-import xml from 'highlight.js/lib/languages/xml';
-import yaml from 'highlight.js/lib/languages/yaml';
-
-// 与原站一致：只注册这 16 种语言，保证「未注册语言走纯文本转义」的行为相同
-const LANGUAGES: Record<string, Parameters<typeof hljs.registerLanguage>[1]> = {
-  javascript,
-  typescript,
-  python,
-  java,
-  go,
-  rust,
-  cpp,
-  csharp,
-  php,
-  bash,
-  json,
-  xml,
-  css,
-  sql,
-  yaml,
-  markdown,
-};
-
-Object.entries(LANGUAGES).forEach(([name, definition]) => {
-  hljs.registerLanguage(name, definition);
-});
+import { hljs, resolveLanguage } from './hljs-languages';
+import { MERMAID_ATTR, MERMAID_CLASS, MERMAID_LOADING_TEXT, MERMAID_STATE_ATTR, encodeMermaid } from './mermaid';
 
 export function escapeHtml(value: string): string {
   return value
@@ -54,10 +15,60 @@ export function escapeHtml(value: string): string {
 const WECHAT_LINK = /^https?:\/\/mp\.weixin\.qq\.com\//;
 const RAW_INLINE_HTML = /^<\/?(sup|sub)>$/i;
 
+/**
+ * 高亮结果缓存：每次敲字都会重渲染整篇，未改动的代码块不该重新跑一遍语法分析。
+ * 条目是生成的 HTML（比源码大几倍），上限按「一篇文章的代码块数量」取 200。
+ */
+const HIGHLIGHT_CACHE_LIMIT = 200;
+const highlightCache = new Map<string, string>();
+
+function highlightCode(text: string, language: string): string {
+  if (!language) return escapeHtml(text);
+
+  const key = `${language}\u0000${text}`;
+  const cached = highlightCache.get(key);
+  if (cached !== undefined) {
+    // 命中后挪到末尾，维持 LRU 顺序
+    highlightCache.delete(key);
+    highlightCache.set(key, cached);
+    return cached;
+  }
+
+  // 语法还没加载时不要把「纯文本兜底」写进缓存：
+  // 否则语法到达后的那次重渲染会命中缓存，代码永远保持无颜色。
+  if (!hljs.getLanguage(language)) return escapeHtml(text);
+
+  const highlighted = hljs.highlight(text, { language }).value;
+
+  highlightCache.set(key, highlighted);
+  if (highlightCache.size > HIGHLIGHT_CACHE_LIMIT) {
+    const oldest = highlightCache.keys().next().value;
+    if (oldest !== undefined) highlightCache.delete(oldest);
+  }
+  return highlighted;
+}
+
 const marked = new Marked({
   gfm: true,
   breaks: false,
   extensions: [
+    // Mermaid 只输出占位元素：SVG 要等 DOM 落盘后异步渲染（见 lib/mermaid.ts）
+    {
+      name: 'mermaid',
+      level: 'block',
+      start(src: string) {
+        return src.match(/^\s*```mermaid\b/m)?.index;
+      },
+      tokenizer(src: string) {
+        const match = /^\s*```mermaid\r?\n([\s\S]*?)\r?\n```[ \t]*(?:\n+|$)/.exec(src);
+        if (!match) return undefined;
+        return { type: 'mermaid', raw: match[0], text: match[1].trim() };
+      },
+      renderer(token: any) {
+        const encoded = encodeMermaid(token.text);
+        return `<div class="${MERMAID_CLASS}" ${MERMAID_ATTR}="${encoded}" ${MERMAID_STATE_ATTR}="loading">${MERMAID_LOADING_TEXT}</div>`;
+      },
+    },
     {
       name: 'sup',
       level: 'inline',
@@ -149,11 +160,8 @@ const marked = new Marked({
   },
   renderer: {
     code({ text, lang }: { text: string; lang?: string }) {
-      const language = (lang || '').trim().split(/\s+/)[0].toLowerCase();
-      const highlighted =
-        language && hljs.getLanguage(language)
-          ? hljs.highlight(text, { language }).value
-          : escapeHtml(text);
+      const language = resolveLanguage((lang || '').trim().split(/\s+/)[0]);
+      const highlighted = highlightCode(text, language);
       return `<pre><span data-bar></span><code>${highlighted}</code></pre>`;
     },
     image({ text }: { text: string }) {

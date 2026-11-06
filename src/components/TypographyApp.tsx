@@ -1,19 +1,23 @@
-import { useDeferredValue, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Newspaper } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import EditorPanel from './editor/EditorPanel';
 import PreviewPanel from './preview/PreviewPanel';
 import ToolShell from './shell/ToolShell';
 import { copyRichText } from '../lib/clipboard';
+import { buildCopyBundleWhenReady } from '../lib/copy-html';
 import { FONT_FAMILIES } from '../lib/constants';
+import { collectCodeLanguages, ensureLanguage, isLanguageReady } from '../lib/hljs-languages';
+import { isHexColor } from '../lib/recolor';
 import { renderMarkdown } from '../lib/render';
-import { useTypographyStore } from '../lib/store';
+import { selectThemeParams, useTypographyStore } from '../lib/store';
 import { THEMES } from '../lib/themes.generated.js';
 import type { Theme } from '../lib/types';
 import { useIsMobile } from '../lib/useIsMobile';
 
 const ALL_THEMES = THEMES as Theme[];
 
-type CopyStatus = 'idle' | 'ok' | 'fail';
+type CopyStatus = 'idle' | 'ok' | 'fail' | 'waiting';
 
 export default function TypographyApp() {
   const markdown = useTypographyStore((state) => state.markdown);
@@ -32,6 +36,29 @@ export default function TypographyApp() {
   const theme = ALL_THEMES.find((item) => item.id === themeId) ?? ALL_THEMES[0];
   const fontPreset = FONT_FAMILIES.find((item) => item.id === fontFamilyId);
   const deferredMarkdown = useDeferredValue(markdown);
+  // selectThemeParams 每次都会返回新对象，必须用浅比较包一层，否则 zustand v5 会无限重渲染
+  const params = useTypographyStore(useShallow(selectThemeParams));
+  const codeThemeId = useTypographyStore((state) => state.codeThemeId);
+
+  // 渲染是同步的：语法没就绪时那次渲染会把代码块降级成纯文本，
+  // 所以先把本文用到的语言加载完，再触发一次重渲染。
+  const codeLanguages = useMemo(() => collectCodeLanguages(deferredMarkdown), [deferredMarkdown]);
+  const languageKey = codeLanguages.join(',');
+  const [languageTick, setLanguageTick] = useState(0);
+
+  useEffect(() => {
+    const missing = codeLanguages.filter((language) => !isLanguageReady(language));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    Promise.all(missing.map((language) => ensureLanguage(language))).then(() => {
+      if (!cancelled) setLanguageTick((tick) => tick + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [languageKey]);
+
   const html = useMemo(
     () =>
       renderMarkdown(deferredMarkdown, theme, {
@@ -39,19 +66,35 @@ export default function TypographyApp() {
         fontScale,
         fontFamily: fontPreset?.stack ?? '',
         fontWeight: fontPreset?.weight,
+        params,
+        codeTheme: codeThemeId,
       }),
-    [deferredMarkdown, theme, mainColor, partColors, fontScale, fontPreset],
+    // languageTick 只用来在语法加载完成后重算
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [deferredMarkdown, theme, mainColor, partColors, fontScale, fontPreset, params, codeThemeId, languageTick],
   );
 
   const handleCopy = async () => {
-    const plain = articleRef.current?.innerText ?? markdown;
-    const ok = await copyRichText(html, plain);
+    const root = articleRef.current;
+    if (root) setStatus('waiting');
+
+    // 有图表时必须从活 DOM 克隆（SVG 只存在于 DOM 里），否则退回字符串
+    const bundle = await buildCopyBundleWhenReady(root, { html, text: markdown, diagrams: 0, dropped: 0 });
+    const ok = await copyRichText(bundle.html, bundle.text || markdown);
+
     setStatus(ok ? 'ok' : 'fail');
     clearTimeout(statusTimer.current);
     statusTimer.current = setTimeout(() => setStatus('idle'), 2500);
   };
 
-  const label = status === 'ok' ? '已复制，去公众号粘贴' : status === 'fail' ? '复制失败，请重试' : '复制到公众号';
+  const label =
+    status === 'ok'
+      ? '已复制，去公众号粘贴'
+      : status === 'fail'
+        ? '复制失败，请重试'
+        : status === 'waiting'
+          ? '图表渲染中…'
+          : '复制到公众号';
   const Icon = status === 'ok' ? Check : Copy;
 
   return (
@@ -73,7 +116,11 @@ export default function TypographyApp() {
         }
       >
         <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-2">
-          <EditorPanel previewRef={scrollerRef} isMobile={isMobile} />
+          <EditorPanel
+            previewRef={scrollerRef}
+            isMobile={isMobile}
+            accent={isHexColor(mainColor) ? mainColor : theme.accent}
+          />
           <PreviewPanel
             theme={theme}
             html={html}

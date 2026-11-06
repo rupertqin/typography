@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  CSSProperties,
   ChangeEvent as ReactChangeEvent,
   ClipboardEvent as ReactClipboardEvent,
   KeyboardEvent as ReactKeyboardEvent,
@@ -17,8 +18,10 @@ import {
   RotateCcw,
   Trash2,
   Undo2,
+  Workflow,
 } from 'lucide-react';
 import { INSERT_ACTIONS } from '../../lib/constants';
+import { highlightMarkdownSource } from '../../lib/highlight-markdown';
 import { EditorHistory } from '../../lib/history';
 import type { EditorSnapshot } from '../../lib/history';
 import { SAMPLE_MARKDOWN } from '../../lib/sample';
@@ -31,6 +34,7 @@ const ICONS = {
   bold: Bold,
   quote: Quote,
   code: CodeXml,
+  mermaid: Workflow,
   image: ImageIcon,
   hr: Minus,
 } as const;
@@ -51,16 +55,47 @@ const clampCaret = (position: number, length: number) => Math.max(0, Math.min(po
 interface EditorPanelProps {
   previewRef: RefObject<HTMLDivElement | null>;
   isMobile: boolean;
+  accent: string;
 }
 
-export default function EditorPanel({ previewRef, isMobile }: EditorPanelProps) {
+export default function EditorPanel({ previewRef, isMobile, accent }: EditorPanelProps) {
   const markdown = useTypographyStore((state) => state.markdown);
   const setMarkdown = useTypographyStore((state) => state.setMarkdown);
 
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const highlightLayer = useRef<HTMLPreElement>(null);
   const historyRef = useRef<EditorHistory | null>(null);
   if (historyRef.current === null) historyRef.current = new EditorHistory();
   const history = historyRef.current;
+
+  // 中文输入法组词时，浏览器用 textarea 自己的颜色画候字；字透明就看不清，
+  // 所以在组词期间把高亮层藏起来、让 textarea 正常显字。
+  const [composing, setComposing] = useState(false);
+
+  const highlighted = useMemo(() => highlightMarkdownSource(markdown), [markdown]);
+
+  /** 高亮层和 textarea 必须严丝合缝地对齐：同步滚动 + 让出滚动条宽度 */
+  const syncHighlight = () => {
+    const node = textarea.current;
+    const layer = highlightLayer.current;
+    if (!node || !layer) return;
+
+    layer.scrollTop = node.scrollTop;
+    layer.scrollLeft = node.scrollLeft;
+
+    const gutter = `${Math.max(0, node.offsetWidth - node.clientWidth)}px`;
+    if (layer.style.right !== gutter) layer.style.right = gutter;
+  };
+
+  useEffect(syncHighlight, [highlighted, composing]);
+
+  useEffect(() => {
+    const node = textarea.current;
+    if (!node || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => syncHighlight());
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const [notice, setNotice] = useState<{ text: string; undoable: boolean } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -235,7 +270,9 @@ export default function EditorPanel({ previewRef, isMobile }: EditorPanelProps) 
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'b') {
       event.preventDefault();
-      insert(INSERT_ACTIONS[1]);
+      // 按 id 找，不要用下标：插入项增删时 ⌘B 不该跟着换功能
+      const bold = INSERT_ACTIONS.find((action) => action.id === 'bold');
+      if (bold) insert(bold);
     }
   };
 
@@ -318,18 +355,35 @@ export default function EditorPanel({ previewRef, isMobile }: EditorPanelProps) 
     >
       {isMobile && toolbar}
 
-      <div className="relative min-h-0 flex-1">
+      <div
+        className="group relative min-h-0 flex-1"
+        style={{ '--mh-accent': accent } as CSSProperties}
+      >
+        <pre
+          ref={highlightLayer}
+          aria-hidden="true"
+          className="md-editor-highlight pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words rounded-xl bg-zinc-50/70 p-4 font-mono text-[13px] leading-relaxed ring-1 ring-inset ring-zinc-200 group-focus-within:bg-white"
+          style={{ opacity: composing ? 0 : 1 }}
+          dangerouslySetInnerHTML={{ __html: highlighted }}
+        />
         <textarea
           ref={textarea}
           value={markdown}
           onChange={handleChange}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
-          onScroll={scrollToPreview}
+          onScroll={() => {
+            syncHighlight();
+            scrollToPreview();
+          }}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
           placeholder="在这里写 Markdown，右边实时预览……"
           aria-label="Markdown 编辑区"
           spellCheck={false}
-          className="absolute inset-0 h-full w-full resize-none rounded-xl bg-zinc-50/70 p-4 font-mono text-[13px] leading-relaxed text-zinc-800 ring-1 ring-inset ring-zinc-200 transition placeholder-zinc-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          className={`absolute inset-0 h-full w-full resize-none rounded-xl bg-transparent p-4 font-mono text-[13px] leading-relaxed caret-zinc-800 ring-1 ring-inset ring-zinc-200 selection:bg-emerald-400/25 placeholder-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-300 ${
+            composing ? 'text-zinc-800' : 'text-transparent'
+          }`}
         />
       </div>
 
