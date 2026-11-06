@@ -16,7 +16,9 @@ import { isHexColor } from '../lib/recolor';
 import { renderMarkdown } from '../lib/render';
 import { selectThemeParams, useTypographyStore } from '../lib/store';
 import { THEMES } from '../lib/themes';
+import { themeBodyFont, themeFontId } from '../lib/themes/fonts';
 import { useEditorController } from '../lib/useEditorController';
+import { useScrollSync } from '../lib/useScrollSync';
 import { useIsMobile } from '../lib/useIsMobile';
 
 const ALL_THEMES = THEMES;
@@ -32,16 +34,31 @@ export default function TypographyApp() {
   const fontFamilyId = useTypographyStore((state) => state.fontFamilyId);
 
   const isMobile = useIsMobile();
+  const scrollSync = useTypographyStore((state) => state.scrollSync);
   const editor = useEditorController();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLDivElement>(null);
+  // 编辑区 ↔ 预览区双向滚动同步（按已滚比例对齐，内部带回环锁）
+  const scrollSyncHandlers = useScrollSync({
+    editorRef: editor.textareaRef,
+    previewRef: scrollerRef,
+    enabled: scrollSync,
+  });
+
   const statusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [status, setStatus] = useState<CopyStatus>('idle');
   // 顶部样式区开合；顶栏「样式」按钮即开关
   const [styleOpen, setStyleOpen] = useState(false);
 
   const theme = ALL_THEMES.find((item) => item.id === themeId) ?? ALL_THEMES[0];
-  const fontPreset = FONT_FAMILIES.find((item) => item.id === fontFamilyId);
+  // 没手动选字体时（'theme'），直接落到主题自己的归属上——下拉里显示的就是这一项
+  const effectiveFontId = fontFamilyId === 'theme' ? themeFontId(theme.styles.wrapper) : fontFamilyId;
+  const fontPreset = FONT_FAMILIES.find((item) => item.id === effectiveFontId);
+  // 编辑区与预览用同一套正文字体
+  const bodyFont = {
+    stack: fontPreset?.stack || themeBodyFont(theme.styles.wrapper),
+    weight: fontPreset?.weight,
+  };
   const deferredMarkdown = useDeferredValue(markdown);
   // selectThemeParams 每次都会返回新对象，必须用浅比较包一层，否则 zustand v5 会无限重渲染
   const params = useTypographyStore(useShallow(selectThemeParams));
@@ -110,8 +127,6 @@ export default function TypographyApp() {
         icon={Newspaper}
         title="公众号排版风格"
         description="写 Markdown，一键复制带样式的正文，粘贴到公众号后台即可。"
-        styleOpen={styleOpen}
-        onToggleStyle={() => setStyleOpen((open) => !open)}
         actions={
           <button
             type="button"
@@ -125,9 +140,15 @@ export default function TypographyApp() {
         }
       />
 
-      <WorkbenchBar editor={editor} theme={theme} isMobile={isMobile} />
+      <WorkbenchBar
+        editor={editor}
+        theme={theme}
+        isMobile={isMobile}
+        styleOpen={styleOpen}
+        onToggleStyle={() => setStyleOpen((open) => !open)}
+      />
 
-      {/* 上：配色 + 排版合一的样式区；下：编辑 | 预览 */}
+      {/* 样式区紧跟在工具条下面：「样式」按钮就在工具条最右端 */}
       {styleOpen && <StylePanel theme={theme} onClose={() => setStyleOpen(false)} />}
 
       <SplitPane
@@ -135,9 +156,9 @@ export default function TypographyApp() {
         editor={
           <EditorPanel
             editor={editor}
-            previewRef={scrollerRef}
-            isMobile={isMobile}
             accent={isHexColor(mainColor) ? mainColor : theme.accent}
+            bodyFont={bodyFont}
+            onScroll={scrollSyncHandlers.onEditorScroll}
           />
         }
         preview={
@@ -147,6 +168,7 @@ export default function TypographyApp() {
             hasContent={Boolean(deferredMarkdown.trim())}
             scrollerRef={scrollerRef}
             articleRef={articleRef}
+            onScroll={scrollSyncHandlers.onPreviewScroll}
             copying={status === 'waiting'}
           />
         }

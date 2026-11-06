@@ -13,7 +13,35 @@ export function escapeHtml(value: string): string {
 
 /** 公众号正文里只有自家域名可点，其余变成不可点的 span（导出时补出地址） */
 const WECHAT_LINK = /^https?:\/\/mp\.weixin\.qq\.com\//;
-const RAW_INLINE_HTML = /^<\/?(sup|sub)>$/i;
+/**
+ * 允许原样写入正文的 HTML 标签：公众号正文里常见、且不会执行脚本的那一批。
+ * doocs-md 是直接透传，我们多一道白名单，避免 <script>/onerror 之类混进预览和复制产物。
+ */
+const RAW_HTML_TAGS = new Set([
+  'a', 'b', 'blockquote', 'br', 'center', 'code', 'del', 'div', 'em', 'figcaption', 'figure',
+  'hr', 'i', 'img', 'li', 'ol', 'p', 's', 'section', 'small', 'span', 'strong', 'sub', 'sup',
+  'table', 'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul',
+]);
+
+const RAW_HTML_TAG = /<\/?([a-zA-Z][a-zA-Z0-9-]*)([^<>]*)>/g;
+/** 事件属性、以及 style 里能执行代码的写法，出现就整段转义 */
+const RAW_HTML_UNSAFE = /\son[a-z]+\s*=|\bstyle\s*=\s*["'][^"']*(?:expression|javascript:)/i;
+
+/**
+ * 校验一段内联/块级 HTML：标签必须在白名单里、不能带事件属性、不能有落单的尖括号。
+ * 通过则原样返回（保留 style），否则返回 null，由调用方转义成文本。
+ */
+function sanitizeRawHtml(html: string): string | null {
+  let safe = true;
+  html.replace(RAW_HTML_TAG, (match, name: string, attrs: string) => {
+    if (!RAW_HTML_TAGS.has(name.toLowerCase()) || RAW_HTML_UNSAFE.test(attrs)) safe = false;
+    return match;
+  });
+  if (!safe) return null;
+  // 去掉所有合法标签后，不应再剩裸尖括号（否则说明有写坏/写不完整的标记）
+  if (/[<>]/.test(html.replace(RAW_HTML_TAG, ''))) return null;
+  return html;
+}
 
 /**
  * 高亮结果缓存：每次敲字都会重渲染整篇，未改动的代码块不该重新跑一遍语法分析。
@@ -201,8 +229,9 @@ const marked = new Marked({
         : `<span data-href="${escapeHtml(href)}">${content}</span>`;
     },
     html({ text }: { text: string }) {
-      // 只放行 <sup>/<sub> 这类成对标签，其余（含手写 style/script）一律转义
-      return RAW_INLINE_HTML.test(text.trim()) ? text.trim().toLowerCase() : escapeHtml(text);
+      // 白名单内的 HTML 原样保留（公众号正文支持 section/center/img 这类），其余一律转义
+      const raw = text.trim();
+      return sanitizeRawHtml(raw) ?? escapeHtml(text);
     },
   },
 });

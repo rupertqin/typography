@@ -10,11 +10,25 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>');
 const { renderMarkdown } = await import('../src/lib/render');
 const { THEMES } = await import('../src/lib/themes');
 const { SAMPLE_MARKDOWN } = await import('../src/lib/sample');
+const { isLegacySample } = await import('../src/lib/sample');
+
+// 示例文章逐字取自 doocs-md（含尚未支持的语法），脚注这类断言不能依赖它，
+// 单独拼一份覆盖「脚注 + 图片 + 代码块」的测试稿
+const SMOKE_MARKDOWN = `${SAMPLE_MARKDOWN}
+
+需要注明出处时用脚注[^1]，会统一列在文末。
+
+[^1]: 测试用的脚注内容。`;
 const { applyColorOverrides, isHexColor } = await import('../src/lib/recolor');
 const { FONT_FAMILIES } = await import('../src/lib/constants');
 const { parseMarkdown } = await import('../src/lib/markdown');
 
 const problems: string[] = [];
+
+// 内置示例换版：只升级「没动过的旧示例草稿」，用户自己写的内容不能被覆盖
+if (!isLegacySample('# 公众号排版风格示例\n\n旧内容')) problems.push('旧版示例草稿没有被识别出来');
+if (isLegacySample(SAMPLE_MARKDOWN)) problems.push('新版示例被误判成旧版示例');
+if (isLegacySample('# 我自己写的标题')) problems.push('用户自写内容被误判成旧版示例');
 const MINI = `## 小标题样式
 
 正文是这样的，**重点内容**会被强调。
@@ -25,7 +39,7 @@ let firstHtml = '';
 const recoloredHasMarker = (html: string) => html.includes('data-part-self');
 
 for (const theme of THEMES as any[]) {
-  const html = renderMarkdown(SAMPLE_MARKDOWN, theme);
+  const html = renderMarkdown(SMOKE_MARKDOWN, theme);
   if (!firstHtml) firstHtml = html;
 
   if (!html.includes('<section style="font-family')) problems.push(`${theme.id}: 缺少根 section 样式`);
@@ -86,11 +100,11 @@ for (const theme of THEMES as any[]) {
   if (percentSizes(scaled) !== percentSizes(plain)) problems.push(`${theme.id}: 整体字号误改了百分比字号`);
 }
 
-// 极小档：取整后仍不得低于 10px，且不出现小数
-const tiny = renderMarkdown(SAMPLE_MARKDOWN, THEMES[0] as any, { fontScale: 0.8 });
+// 最小档（0.7）：取整后仍不得低于 8px，且不出现小数
+const tiny = renderMarkdown(SAMPLE_MARKDOWN, THEMES[0] as any, { fontScale: 0.7 });
 const tinySizes = pxSizes(tiny);
 if (tinySizes.some((size) => !Number.isInteger(size))) problems.push('极小档：出现小数 px');
-if (tinySizes.some((size) => size < 10)) problems.push('极小档：出现小于 10px 的字号');
+if (tinySizes.some((size) => size < 8)) problems.push(`最小档：出现小于 8px 的字号：${tinySizes.join(',')}`);
 
 // 正文字体：字体只写在唯一的根 section 上，不再套第二层容器，内层元素不写 font-family
 const parseHtml = (html: string) =>
@@ -161,6 +175,27 @@ const boldCases: Array<{ name: string; md: string; bold: boolean }> = [
   { name: '两侧带空格的星号', md: 'a ** b', bold: false },
   { name: '下划线夹字母', md: 'a__b__c', bold: false },
 ];
+// 内联/块级 HTML：公众号支持的标签原样保留，危险写法必须转义
+const rawCases: Array<{ name: string; md: string; keep?: string; escape?: boolean }> = [
+  {
+    name: 'center + img',
+    md: '<center>\n    <img src="https://example.com/a.png" alt="qr code" style="width: 100px;">\n</center>',
+    keep: '<center>',
+  },
+  { name: '行内下划线', md: '前文 <u>下划线</u> 后文', keep: '<u>下划线</u>' },
+  { name: 'script', md: '<script>alert(1)</script>', escape: true },
+  { name: '事件属性', md: '<img src="x.png" onerror="alert(1)">', escape: true },
+];
+for (const item of rawCases) {
+  const out = renderMarkdown(item.md, THEMES[0] as any);
+  if (item.keep && !out.includes(item.keep)) problems.push(`HTML 用例「${item.name}」没有原样保留：${out.slice(0, 160)}`);
+  if (item.escape && !out.includes('&lt;')) problems.push(`HTML 用例「${item.name}」没有被转义`);
+  // 转义后的文本里出现 onerror= 是安全的，只有真的成了标签才算漏
+  if (item.escape && /<(?:script|img)[^>]*\son[a-z]+=/i.test(out)) {
+    problems.push(`HTML 用例「${item.name}」把危险标记放进了产物`);
+  }
+}
+
 for (const item of boldCases) {
   const html = parseMarkdown(item.md);
   const hasStrong = html.includes('<strong>');
@@ -207,12 +242,12 @@ const baseDoc = parseHtml(baseHtml);
 const baseParagraph = Array.from(baseDoc.querySelectorAll('p')).find((node) => node.textContent?.includes('第一段'));
 const baseMargin = /margin(?:-bottom|-top)?:\s*([\d.]+)em/.exec(baseParagraph?.getAttribute('style') ?? '')?.[1];
 
-// 2) 行高：正文被改写，代码块保持自己的节奏
+// 2) 行距：正文被改写，代码块保持自己的节奏
 const lineHeightDoc = parseHtml(renderMarkdown(PARAM_MD, paramTheme, { params: { ...DEFAULT_THEME_PARAMS, lineHeight: 1.9 } }));
 const lineParagraph = Array.from(lineHeightDoc.querySelectorAll('p')).find((node) => node.textContent?.includes('第一段'));
-if (!/line-height:1\.9/.test(lineParagraph?.getAttribute('style') ?? '')) problems.push('行高参数没有作用到正文');
+if (!/line-height:1\.9/.test(lineParagraph?.getAttribute('style') ?? '')) problems.push('行距参数没有作用到正文');
 if (/line-height:1\.9/.test(lineHeightDoc.querySelector('pre > code')?.getAttribute('style') ?? '')) {
-  problems.push('行高参数误改了代码块');
+  problems.push('行距参数误改了代码块');
 }
 
 // 3) 段间距：按倍数缩放已有 margin，且不改左右
@@ -256,6 +291,20 @@ const quoteDoc = parseHtml(
 );
 if (!/background:rgba\(22,119,255/.test(quoteDoc.querySelector('blockquote')?.getAttribute('style') ?? '')) {
   problems.push('引用底色的 accent 哨兵值没有跟随主色');
+}
+
+// 5.5) 左右边距：'theme' 不写 padding，指定值写进根 section 的长写属性
+const paddingDefault = parseHtml(renderMarkdown(PARAM_MD, paramTheme));
+const paddingDefaultStyle = paddingDefault.body.firstElementChild?.getAttribute('style') ?? '';
+if (paddingDefaultStyle.includes('padding-left:')) problems.push('默认参数下不该出现 padding-left');
+const paddedDoc = parseHtml(
+  renderMarkdown(PARAM_MD, paramTheme, { params: { ...DEFAULT_THEME_PARAMS, pagePaddingX: 16 } }),
+);
+const paddedStyle = paddedDoc.body.firstElementChild?.getAttribute('style') ?? '';
+if (!paddedStyle.includes('padding-left:16px')) problems.push(`左右边距没写进根 section：${paddedStyle}`);
+if (!paddedStyle.includes('padding-right:16px')) problems.push('左右边距只写了左侧');
+if (paddedStyle.indexOf('padding-left:16px') < paddedStyle.indexOf('padding:')) {
+  problems.push('左右边距必须追加在 padding 简写之后，否则覆盖不了左右值');
 }
 
 // 6) 代码配色：token 色写死进内联样式，pre 底色跟着换

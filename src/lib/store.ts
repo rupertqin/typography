@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { DEFAULT_THEME_PARAMS } from './types';
 import type { HeadingLevels, HeadingStyleType, ThemeParams } from './types';
 import { FOLLOW_THEME_CODE } from './code-themes';
-import { SAMPLE_MARKDOWN } from './sample';
+import { SAMPLE_MARKDOWN, isLegacySample } from './sample';
 
 /** 工作区三态：只显示编辑、只显示预览、左右分屏 */
 export type ViewMode = 'edit' | 'split' | 'preview';
@@ -27,6 +27,8 @@ export interface TypographyState {
   blockSpacing: number;
   blockquoteBackground: string;
   headingStyles: Partial<Record<HeadingLevels, HeadingStyleType>>;
+  /** 正文左右内边距；'theme' = 沿用主题 */
+  pagePaddingX: ThemeParams['pagePaddingX'];
   /** 工作区布局（持久化，刷新后保持上次的分屏比例与视图） */
   viewMode: ViewMode;
   previewDevice: PreviewDevice;
@@ -47,6 +49,7 @@ export interface TypographyState {
   setBlockSpacing: (blockSpacing: number) => void;
   setBlockquoteBackground: (background: string) => void;
   setHeadingStyle: (level: HeadingLevels, style: HeadingStyleType) => void;
+  setPagePaddingX: (pagePaddingX: ThemeParams['pagePaddingX']) => void;
   resetParams: () => void;
   setViewMode: (viewMode: ViewMode) => void;
   setPreviewDevice: (previewDevice: PreviewDevice) => void;
@@ -78,6 +81,7 @@ export const useTypographyStore = create<TypographyState>()(
       blockSpacing: DEFAULT_THEME_PARAMS.blockSpacing,
       blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
       headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
+      pagePaddingX: DEFAULT_THEME_PARAMS.pagePaddingX,
       viewMode: 'split',
       previewDevice: 'mobile',
       scrollSync: true,
@@ -108,12 +112,14 @@ export const useTypographyStore = create<TypographyState>()(
           else next[level] = style;
           return { headingStyles: next };
         }),
+      setPagePaddingX: (pagePaddingX) => set({ pagePaddingX }),
       resetParams: () =>
         set({
           lineHeight: DEFAULT_THEME_PARAMS.lineHeight,
           blockSpacing: DEFAULT_THEME_PARAMS.blockSpacing,
           blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
           headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
+          pagePaddingX: DEFAULT_THEME_PARAMS.pagePaddingX,
         }),
       setViewMode: (viewMode) => set({ viewMode }),
       setPreviewDevice: (previewDevice) => set({ previewDevice }),
@@ -124,7 +130,20 @@ export const useTypographyStore = create<TypographyState>()(
       setSplitRatio: (splitRatio) =>
         set({ splitRatio: Math.min(SPLIT_RATIO_MAX, Math.max(SPLIT_RATIO_MIN, splitRatio)) }),
     }),
-    { name: 'typography' },
+    {
+      name: 'typography',
+      /**
+       * 内置示例换版时，把「用户没动过的旧示例草稿」升级成新示例。
+       * 只看开头是否命中旧示例标题，自己写过的内容不会被覆盖。
+       */
+      merge: (persisted, current) => {
+        const merged = { ...current, ...(persisted as Partial<TypographyState>) };
+        if (typeof merged.markdown === 'string' && isLegacySample(merged.markdown)) {
+          merged.markdown = SAMPLE_MARKDOWN;
+        }
+        return merged;
+      },
+    },
   ),
 );
 
@@ -135,5 +154,6 @@ export function selectThemeParams(state: TypographyState): ThemeParams {
     blockSpacing: state.blockSpacing ?? DEFAULT_THEME_PARAMS.blockSpacing,
     blockquoteBackground: state.blockquoteBackground ?? DEFAULT_THEME_PARAMS.blockquoteBackground,
     headingStyles: state.headingStyles ?? DEFAULT_THEME_PARAMS.headingStyles,
+    pagePaddingX: state.pagePaddingX ?? DEFAULT_THEME_PARAMS.pagePaddingX,
   };
 }

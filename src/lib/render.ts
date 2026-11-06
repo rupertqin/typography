@@ -8,6 +8,7 @@ import {
   STYLE_KEY_BY_TAG,
   applyBlockSpacing,
   applyBlockquoteBackground,
+  applyPagePadding,
   applyCard,
   applyCodeChrome,
   applyFontFamily,
@@ -163,6 +164,7 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
     const quoteBackground =
       params.blockquoteBackground === 'accent' ? rgbaFromHex(accent, 0.08) : params.blockquoteBackground;
     applyBlockquoteBackground(root, quoteBackground);
+    applyPagePadding(root, params.pagePaddingX);
   }
 
   // 整体字号放在最后：配色重映射会重写 style，先缩放会被覆盖

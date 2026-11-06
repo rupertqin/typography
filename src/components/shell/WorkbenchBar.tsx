@@ -1,5 +1,20 @@
-import { Bold, CodeXml, Heading2, Image as ImageIcon, Minus, Quote, Redo2, RotateCcw, Trash2, Undo2, Workflow } from 'lucide-react';
+import {
+  Bold,
+  ChevronDown,
+  CodeXml,
+  Heading2,
+  Image as ImageIcon,
+  Minus,
+  Quote,
+  Redo2,
+  RotateCcw,
+  SlidersHorizontal,
+  Trash2,
+  Undo2,
+  Workflow,
+} from 'lucide-react';
 import { FONT_FAMILIES, FONT_SCALES, INSERT_ACTIONS, ZOOM_LEVELS } from '../../lib/constants';
+import { themeFontId } from '../../lib/themes/fonts';
 import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/themes';
 import type { EditorController } from '../../lib/useEditorController';
@@ -31,6 +46,9 @@ interface WorkbenchBarProps {
   theme: Theme;
   /** 窄屏把主题选择器单独放一行，浮层才能用整宽（与原来预览区的落点一致） */
   isMobile: boolean;
+  /** 「样式」开关：开合工具条下方的样式区 */
+  styleOpen: boolean;
+  onToggleStyle: () => void;
 }
 
 /**
@@ -38,7 +56,7 @@ interface WorkbenchBarProps {
  *
  * 编辑动作靠 useEditorController 与左栏共用一份状态，所以工具条不需要包在编辑区里。
  */
-export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarProps) {
+export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onToggleStyle }: WorkbenchBarProps) {
   const zoom = useTypographyStore((state) => state.previewZoom);
   const setZoom = useTypographyStore((state) => state.setPreviewZoom);
   const activeZoom = ZOOM_LEVELS.includes(zoom) ? zoom : 1;
@@ -46,11 +64,16 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
   const setFontScale = useTypographyStore((state) => state.setFontScale);
   const fontFamilyId = useTypographyStore((state) => state.fontFamilyId);
   const setFontFamilyId = useTypographyStore((state) => state.setFontFamilyId);
+  // 'theme' 是内部默认值（跟随主题）：下拉里不留这一项，直接显示主题实际用的那个字体
+  const resolvedFontId = fontFamilyId === 'theme' ? themeFontId(theme.styles.wrapper) : fontFamilyId;
   const baseFonts = FONT_FAMILIES.filter((font) => !font.iosOnly);
   const iosFonts = FONT_FAMILIES.filter((font) => font.iosOnly);
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-200 bg-white px-3 py-2 lg:px-5">
+    <div
+      data-workbench
+      className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-200 bg-white px-3 py-2 lg:px-5"
+    >
       <div className="flex items-center gap-0.5 rounded-md border border-zinc-200 p-0.5">
         {INSERT_ACTIONS.map((action) => {
           const Icon = ICONS[action.id as keyof typeof ICONS];
@@ -126,7 +149,7 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
         >
           <span className="hidden text-[11px] text-zinc-400 sm:inline">字体</span>
           <select
-            value={fontFamilyId}
+            value={resolvedFontId}
             onChange={(event) => setFontFamilyId(event.target.value)}
             aria-label="正文字体"
             className="cursor-pointer bg-transparent py-0 pr-0.5 text-[11px] text-zinc-600 focus:outline-none"
@@ -181,6 +204,24 @@ export default function WorkbenchBar({ editor, theme, isMobile }: WorkbenchBarPr
             </button>
           ))}
         </div>
+
+        {/* 工具条最右端：「样式」开关，开合紧贴其下的样式区 */}
+        <button
+          type="button"
+          onClick={onToggleStyle}
+          aria-pressed={styleOpen}
+          title="样式：配色与排版"
+          className="ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+        >
+          <SlidersHorizontal size={13} />
+          <span>样式</span>
+          <ChevronDown
+            size={12}
+            strokeWidth={2.4}
+            aria-hidden
+            className={`transition-transform duration-200 ${styleOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
       </div>
 
       {isMobile && (

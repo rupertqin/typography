@@ -25,6 +25,7 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
   const blockSpacing = useTypographyStore((state) => state.blockSpacing);
   const blockquoteBackground = useTypographyStore((state) => state.blockquoteBackground);
   const headingCount = useTypographyStore((state) => Object.keys(state.headingStyles).length);
+  const pagePaddingX = useTypographyStore((state) => state.pagePaddingX);
   const codeThemeId = useTypographyStore((state) => state.codeThemeId);
   const resetColors = useTypographyStore((state) => state.resetColors);
   const resetParams = useTypographyStore((state) => state.resetParams);
@@ -44,39 +45,31 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
     blockSpacing !== 1 ||
     Boolean(blockquoteBackground) ||
     headingCount > 0 ||
+    pagePaddingX !== 'theme' ||
     codeThemeId !== FOLLOW_THEME_CODE;
+  const dirty = colorsDirty || paramsDirty;
+
+  const resetAll = () => {
+    resetColors();
+    resetParams();
+    setCodeThemeId(FOLLOW_THEME_CODE);
+  };
 
   return (
     <section data-style-panel className="shrink-0 border-b border-zinc-200 bg-white">
       <div className="flex items-center gap-3 px-4 py-2">
         <span className="shrink-0 text-xs font-semibold text-zinc-900">样式</span>
-        <span className="hidden truncate text-[11px] text-zinc-400 sm:inline">
-          配色与排版在一处，改完立刻反映到右侧预览
-        </span>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={resetColors}
-            disabled={!colorsDirty}
-            title="把主色与单独调色恢复成模板原色"
+            onClick={resetAll}
+            disabled={!dirty}
+            title="把主色、单独调色、行距、段间距、引用底色、标题样式、左右边距与代码配色全部恢复默认"
             className={RESET_BUTTON}
           >
             <RotateCcw size={10} />
-            重置配色
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              resetParams();
-              setCodeThemeId(FOLLOW_THEME_CODE);
-            }}
-            disabled={!paramsDirty}
-            title="把行高、段间距、标题样式、代码配色恢复默认"
-            className={RESET_BUTTON}
-          >
-            <RotateCcw size={10} />
-            重置排版
+            重置样式
           </button>
           <button
             type="button"

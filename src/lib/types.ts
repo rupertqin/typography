@@ -44,6 +44,8 @@ export interface ThemeParams {
   /** '' = 跟随主题；'transparent' 或具体色值 = 覆盖引用块底色 */
   blockquoteBackground: string;
   headingStyles: Partial<Record<HeadingLevels, HeadingStyleType>>;
+  /** 'theme' = 沿用主题自带的左右留白；数字为正文左右内边距（px） */
+  pagePaddingX: 'theme' | number;
 }
 
 export const DEFAULT_THEME_PARAMS: ThemeParams = {
@@ -51,6 +53,7 @@ export const DEFAULT_THEME_PARAMS: ThemeParams = {
   blockSpacing: 1,
   blockquoteBackground: '',
   headingStyles: {},
+  pagePaddingX: 'theme',
 };
 
 export function hasThemeParams(params: ThemeParams | undefined): boolean {
@@ -58,6 +61,7 @@ export function hasThemeParams(params: ThemeParams | undefined): boolean {
   if (params.lineHeight !== 'theme') return true;
   if (params.blockSpacing !== 1) return true;
   if (params.blockquoteBackground) return true;
+  if (params.pagePaddingX !== 'theme') return true;
   return Object.values(params.headingStyles).some((style) => style && style !== 'default');
 }
 

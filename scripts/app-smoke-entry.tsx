@@ -89,9 +89,9 @@ try {
   expect(text().includes('复制到公众号'), '缺少复制按钮');
   expect(text().includes('草稿自动保存在本机'), '缺少草稿统计行');
   expect(text().includes('橙心'), '默认主题不是橙心');
-  expect(html().includes('公众号排版风格示例'), '预览未渲染示例文章');
+  expect(html().includes('探索 Markdown 的奇妙世界'), '预览未渲染示例文章');
   expect(html().includes('font-family:-apple-system'), '预览未注入主题样式');
-  expect(text().includes('38 套可选') || html().includes('38 套可选'), '示例正文未渲染');
+  expect(text().includes('Markdown 基础语法') || html().includes('Markdown 基础语法'), '示例正文未渲染');
 
   // ---- 布局骨架：顶栏 / 可拖拽分栏 / 状态栏三态 / 顶部样式区 ----
   const clickButton = (target: HTMLButtonElement | undefined) =>
@@ -124,6 +124,41 @@ try {
   await wait(120);
   expect(Boolean(mount.querySelector('textarea')), '切回分屏后编辑区没回来');
   expect(Boolean(mount.querySelector('section[style*="font-family"]')), '切回分屏后预览区没回来');
+
+  // 双向滚动同步：按已滚比例对齐（jsdom 没有真实布局，这里伪造滚动高度）
+  {
+    const editorEl = mount.querySelector('textarea') as HTMLTextAreaElement | null;
+    const scroller = mount.querySelector('[data-preview-scroll]') as HTMLElement | null;
+    expect(Boolean(editorEl && scroller), '找不到编辑区/预览滚动容器');
+    const fakeMetrics = (node: HTMLElement, scrollHeight: number, clientHeight: number) => {
+      Object.defineProperty(node, 'scrollHeight', { value: scrollHeight, configurable: true });
+      Object.defineProperty(node, 'clientHeight', { value: clientHeight, configurable: true });
+    };
+    if (editorEl && scroller) {
+      fakeMetrics(editorEl, 1000, 200); // 可滚 800
+      fakeMetrics(scroller, 3000, 600); // 可滚 2400
+      editorEl.scrollTop = 400; // 50%
+      editorEl.dispatchEvent(new win.Event('scroll'));
+      await wait(60);
+      expect(Math.round(scroller.scrollTop) === 1200, `编辑区滚动未同步到预览：${scroller.scrollTop}`);
+
+      await wait(60); // 等回环锁在下一帧释放
+      scroller.scrollTop = 2400; // 100%
+      scroller.dispatchEvent(new win.Event('scroll'));
+      await wait(60);
+      expect(Math.round(editorEl.scrollTop) === 800, `预览滚动未同步到编辑区：${editorEl.scrollTop}`);
+
+      // 关闭同步后不再跟随
+      useTypographyStore.getState().toggleScrollSync();
+      await wait(60);
+      editorEl.scrollTop = 0;
+      editorEl.dispatchEvent(new win.Event('scroll'));
+      await wait(60);
+      expect(Math.round(scroller.scrollTop) === 2400, '关闭同步后预览仍跟着动');
+      useTypographyStore.getState().toggleScrollSync();
+      await wait(60);
+    }
+  }
 
   // 预览纸宽度：默认手机列宽，点状态栏按钮后切桌面宽度
   expect(useTypographyStore.getState().previewDevice === 'mobile', '默认预览宽度不是手机');
@@ -186,12 +221,15 @@ try {
   expect(!text().includes('干货教程'), '选择主题后菜单未关闭');
 
   // ---- 顶部样式区：顶栏「样式」按钮打开，配色与排版同屏 ----
-  const openStylePanel = async () => {
-    const toggle = Array.from(mount.querySelectorAll('button')).find(
+  const styleToggle = () =>
+    Array.from(mount.querySelectorAll('button')).find(
       (btn) => (btn.getAttribute('title') ?? '') === '样式：配色与排版',
     ) as HTMLButtonElement | undefined;
+  const openStylePanel = async () => {
+    const toggle = styleToggle();
     clickButton(toggle);
     await wait(150);
+    return toggle;
   };
   const articleRoot = () => mount.querySelector('section[style*="font-family"]') as HTMLElement | null;
   const clickAria = (label: string) => {
@@ -202,26 +240,51 @@ try {
     return button;
   };
 
-  await openStylePanel();
+  const closedClass = styleToggle()?.className ?? '';
+  const openedToggle = await openStylePanel();
+  // 「样式」按钮在工具条最右端，不在顶栏
+  expect(!openedToggle?.closest('header'), '「样式」按钮还留在顶栏里');
+  const workbenchBar = openedToggle?.closest('[data-workbench]') ?? null;
+  expect(Boolean(workbenchBar), '「样式」按钮不在工作台工具条里');
+  expect(
+    workbenchBar?.lastElementChild?.contains(openedToggle ?? null) ?? false,
+    '「样式」按钮不在工具条右侧那一组里',
+  );
+  expect(
+    (openedToggle?.className ?? '') === closedClass,
+    `「样式」按钮开合时不该变色：${closedClass} → ${openedToggle?.className ?? ''}`,
+  );
+  const arrowClass = () => openedToggle?.querySelector('svg[aria-hidden]')?.getAttribute('class') ?? '';
+  expect(arrowClass().includes('rotate-180'), `展开时箭头没有朝上：${arrowClass()}`);
   expect(text().includes('段间距'), '样式区缺少段间距分组');
-  expect(text().includes('行高'), '样式区缺少行高分组');
+  expect(text().includes('行距'), '样式区缺少行距分组');
   expect(text().includes('代码配色'), '样式区缺少代码配色分组');
   // 合并后配色与排版必须在同一屏，不再靠页签切换
   expect(text().includes('主色'), '样式区缺少主色分组');
   expect(text().includes('单独调色'), '样式区缺少部件调色');
-  expect(text().includes('重置配色') && text().includes('重置排版'), '样式区缺少重置入口');
+  expect(text().includes('重置样式'), '样式区缺少重置入口');
+  expect(!text().includes('重置配色') && !text().includes('重置排版'), '重置入口没有合并成一个');
 
-  expect(Boolean(clickAria('行高1.9')), '样式区缺少行高 1.9 档');
+  expect(Boolean(clickAria('行距1.9')), '样式区缺少行距 1.9 档');
   await wait(160);
-  expect(useTypographyStore.getState().lineHeight === 1.9, '行高未写入 store');
+  expect(useTypographyStore.getState().lineHeight === 1.9, '行距未写入 store');
   const lineHeightStyle =
     Array.from(articleRoot()?.querySelectorAll('p') ?? []).find((node) => node.textContent?.trim())?.getAttribute('style') ??
     '';
-  expect(lineHeightStyle.includes('line-height:1.9'), `行高未作用到正文：${lineHeightStyle}`);
+  expect(lineHeightStyle.includes('line-height:1.9'), `行距未作用到正文：${lineHeightStyle}`);
 
   expect(Boolean(clickAria('段间距1.15×')), '样式区缺少段间距档位');
   await wait(160);
   expect(useTypographyStore.getState().blockSpacing === 1.15, '段间距未写入 store');
+
+  expect(Boolean(clickAria('左右边距16')), '样式区缺少左右边距档位');
+  await wait(180);
+  expect(useTypographyStore.getState().pagePaddingX === 16, '左右边距未写入 store');
+  const paddedStyle = articleRoot()?.getAttribute('style') ?? '';
+  expect(
+    paddedStyle.includes('padding-left:16px') && paddedStyle.includes('padding-right:16px'),
+    `左右边距未作用到正文根容器：${paddedStyle}`,
+  );
 
   expect(Boolean(clickAria('二级标题下边框')), '样式区缺少标题样式预设');
   await wait(180);
@@ -245,19 +308,29 @@ try {
     expect(Boolean(tokenStyle), '代码 token 没有内联颜色');
   }
 
-  const resetParams = Array.from(mount.querySelectorAll('button')).find(
-    (btn) => (btn.textContent ?? '').trim() === '重置排版',
+  useTypographyStore.getState().setMainColor('#123456');
+  await wait(60);
+  const resetAll = Array.from(mount.querySelectorAll('button')).find(
+    (btn) => (btn.textContent ?? '').trim() === '重置样式',
   ) as HTMLButtonElement | undefined;
-  expect(Boolean(resetParams) && !resetParams?.disabled, '样式区的「重置排版」不可用');
-  resetParams?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
-  await wait(160);
-  expect(useTypographyStore.getState().lineHeight === 'theme', '恢复默认没有重置行高');
-  expect(useTypographyStore.getState().codeThemeId === 'theme', '恢复默认没有重置代码配色');
-  expect(!(articleRoot()?.querySelector('h2')?.getAttribute('style') ?? '').includes('border-bottom:2px'), '恢复默认后标题仍是描边样式');
+  expect(Boolean(resetAll) && !resetAll?.disabled, '样式区的「重置样式」不可用');
+  resetAll?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await wait(200);
+  expect(useTypographyStore.getState().lineHeight === 'theme', '重置样式没有重置行距');
+  expect(useTypographyStore.getState().codeThemeId === 'theme', '重置样式没有重置代码配色');
+  expect(useTypographyStore.getState().pagePaddingX === 'theme', '重置样式没有重置左右边距');
+  expect(useTypographyStore.getState().mainColor === '', '重置样式没有重置主色');
+  expect(!(articleRoot()?.getAttribute('style') ?? '').includes('padding-left:'), '重置后正文仍带边距');
+  expect(!(articleRoot()?.querySelector('h2')?.getAttribute('style') ?? '').includes('border-bottom:2px'), '重置后标题仍是描边样式');
 
   win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   await wait(100);
   expect(!mount.querySelector('[data-style-panel]'), 'Esc 未关闭顶部样式区');
+  expect(
+    (styleToggle()?.className ?? '') === closedClass,
+    '「样式」按钮收起后配色变了',
+  );
+  expect(!arrowClass().includes('rotate-180'), `收起后箭头没有朝下：${arrowClass()}`);
 
   // 再开一次：配色部分不需要切页签，直接可用
   await openStylePanel();
@@ -324,26 +397,32 @@ try {
     );
   }
 
-  // 整体字号：点「极大」后正文根节点字号真的放大，并写进 store
+  // 整体字号：点「更大」后正文根节点字号真的放大，并写进 store
   const articleHtml = () =>
     (mount.querySelector('section[style*="font-family"]') as HTMLElement | null)?.outerHTML ?? '';
   const baseFontSize = Number(/font-size:([\d.]+)px/.exec(articleHtml())?.[1]);
   expect(Number.isFinite(baseFontSize) && baseFontSize > 0, '预览正文缺少基准字号');
   const bigFontButton = Array.from(mount.querySelectorAll('button')).find(
-    (btn) => btn.getAttribute('aria-label') === '整体字号极大',
+    (btn) => btn.getAttribute('aria-label') === '整体字号更大',
   );
   expect(Boolean(bigFontButton), '缺少整体字号按钮');
   bigFontButton?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   await wait(160);
-  expect(useTypographyStore.getState().fontScale === 1.25, '整体字号未写入 store');
+  expect(useTypographyStore.getState().fontScale === 1.4, '整体字号未写入 store');
   const scaledFontSize = Number(/font-size:([\d.]+)px/.exec(articleHtml())?.[1]);
   expect(
-    scaledFontSize === Math.max(10, Math.round(baseFontSize * 1.25)),
+    scaledFontSize === Math.max(10, Math.round(baseFontSize * 1.4)),
     `整体字号未生效：${baseFontSize}px → ${scaledFontSize}px`,
   );
 
   // 字体：只在主题 section 里包一层带字体的 wrapper，内层元素不写 font-family
   const fontSelect = mount.querySelector('select[aria-label="正文字体"]') as HTMLSelectElement | null;
+  // 下拉里不再有「主题字体」：未手动选字体时直接显示主题实际用的那一项
+  expect(fontSelect?.value === 'sans', `字体下拉默认值应是主题归属 sans，实际 ${fontSelect?.value}`);
+  expect(
+    !Array.from(fontSelect?.options ?? []).some((option) => (option.textContent ?? '').includes('主题字体')),
+    '字体下拉里仍有「主题字体」选项',
+  );
   expect(Boolean(fontSelect), '缺少正文字体选择器');
   // 字体只写在唯一的根 section 上（不再有内层字体容器）
   const fontWrapperStyle = () => articleRoot()?.getAttribute('style') ?? '';
@@ -353,6 +432,20 @@ try {
     await wait(160);
     expect(useTypographyStore.getState().fontFamilyId === 'song', '字体未写入 store');
     expect(fontWrapperStyle().includes('Songti SC'), `根 section 未换成宋体：${fontWrapperStyle()}`);
+
+    // 编辑区的基础字体必须跟预览一致（高亮层 / textarea 同一套栈）。
+    // 浏览器与 jsdom 都会把 style 属性里的逗号、多词字体名重新序列化，比较前先归一化。
+    const normFont = (value: string | undefined) =>
+      (value ?? '').replace(/["']/g, '').replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ').trim().toLowerCase();
+    const fontOf = (node: Element | null | undefined) =>
+      normFont(/font-family:([^;]+)/i.exec(node?.getAttribute('style') ?? '')?.[1]);
+    const editorFont = fontOf(mount.querySelector('textarea'));
+    expect(Boolean(editorFont), '编辑区没有读取正文字体');
+    expect(editorFont.includes('songti sc'), `编辑区字体没跟着换成宋体：${editorFont}`);
+    const previewFont = fontOf(articleRoot());
+    expect(editorFont === previewFont, `编辑区与预览字体不一致：${editorFont} vs ${previewFont}`);
+    const highlightFont = fontOf(mount.querySelector('pre.md-editor-highlight'));
+    expect(highlightFont === editorFont, `高亮层与 textarea 字体不一致：${highlightFont} vs ${editorFont}`);
     expect(
       !Array.from(mount.querySelectorAll('section')).some(
         (node) =>
@@ -369,12 +462,24 @@ try {
     const thinStyle = fontWrapperStyle();
     expect(thinStyle.includes('PingFang SC'), `细体未使用白名单字体名：${thinStyle}`);
     expect(thinStyle.includes('font-weight:300'), `细体未带上字重：${thinStyle}`);
-    expect(!html().includes('&quot;'), '内联样式里残留了转义引号');
+    expect(
+      !(articleRoot()?.parentElement?.innerHTML ?? '').includes('&quot;'),
+      '正文内联样式里残留了转义引号',
+    );
     const textParagraph = Array.from(mount.querySelectorAll('p')).find((node) => node.textContent?.trim());
     expect(
       !(textParagraph?.getAttribute('style') ?? '').includes('font-family'),
       '内层段落仍写了 font-family',
     );
+
+    // 换主题时（没手动选过字体）下拉自动跟着展示该主题的字体
+    useTypographyStore.getState().setFontFamilyId('theme');
+    useTypographyStore.getState().setThemeId('ink');
+    await wait(180);
+    expect(fontSelect?.value === 'song', `衬线主题下字体下拉应显示宋体，实际 ${fontSelect?.value}`);
+    useTypographyStore.getState().setThemeId('orange');
+    await wait(180);
+    expect(fontSelect?.value === 'sans', `无衬线主题下字体下拉应显示黑体，实际 ${fontSelect?.value}`);
   }
 
   // 清空也要进历史：清空后 Ctrl+Z 能拿回原文，Ctrl+Shift+Z 能再清空
@@ -584,6 +689,7 @@ try {
       'blockSpacing',
       'blockquoteBackground',
       'headingStyles',
+      'pagePaddingX',
       'viewMode',
       'previewDevice',
       'scrollSync',

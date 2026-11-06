@@ -1,5 +1,3 @@
-import { rgbaFromHex } from './recolor';
-
 /** 占位元素的标记：源码藏在 data 属性里，DOM 落盘后再水化成 SVG */
 export const MERMAID_ATTR = 'data-mermaid';
 export const MERMAID_STATE_ATTR = 'data-state';
@@ -48,37 +46,52 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function loadMermaid(): Promise<MermaidApi> {
-  loader ??= import('mermaid')
-    .then((module) => module.default)
-    .catch((error: unknown) => {
-      loader = null;
-      throw error;
-    });
-  return loader;
+/**
+ * dev 下 Vite 重新预构建依赖会让旧的 `?v=hash` 404，表现成
+ * "Failed to fetch dynamically imported module"——这是加载失败，不是图表语法错。
+ * 这类错误重试一次通常就能拿到新的 chunk。
+ */
+const IMPORT_FAILURE = /dynamically imported module|module script failed|networkerror|load failed|err_failed/i;
+
+function isImportFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return IMPORT_FAILURE.test(message);
 }
 
-/** 极淡的主色底 + 主色描边：图跟着文章主色走，但正文对比度不受影响 */
-function themeConfig(accent: string, fontFamily: string) {
-  const tint = rgbaFromHex(accent, 0.12) || '#f5f5f5';
+function loadMermaid(attempt = 0): Promise<MermaidApi> {
+  if (!loader) {
+    loader = import('mermaid')
+      .then((module) => module.default)
+      .catch((error: unknown) => {
+        loader = null;
+        throw error;
+      });
+  }
+
+  return loader.catch((error: unknown) => {
+    if (attempt > 0 || !isImportFailure(error)) throw error;
+    return new Promise((resolve) => setTimeout(resolve, 300)).then(() => loadMermaid(attempt + 1));
+  });
+}
+
+/**
+ * 与 doocs-md 对齐：用 mermaid 内置的 `default` 主题。
+ *
+ * 之前用 `base` 手工配色（主色 12% 透明度做底、主色描边），节点几乎是白底灰边，
+ * 一张流程图看起来像黑白稿。`default` 自带淡紫/淡黄节点 + 紫色边框 + 深灰连线，
+ * 层次和参考实现一致；这里只换字体（跟随文章正文字体），不覆盖调色板。
+ */
+function themeConfig(fontFamily: string) {
   return {
     startOnLoad: false,
     securityLevel: 'strict' as const,
-    theme: 'base' as const,
-    fontFamily: fontFamily || 'PingFang SC, Microsoft YaHei, sans-serif',
+    theme: 'default' as const,
     themeVariables: {
-      primaryColor: tint,
-      primaryBorderColor: accent,
-      primaryTextColor: '#262626',
-      secondaryColor: '#f5f5f5',
-      secondaryBorderColor: '#d9d9d9',
-      tertiaryColor: '#ffffff',
-      lineColor: '#333333',
-      textColor: '#262626',
-      background: '#ffffff',
-      edgeLabelBackground: '#ffffff',
+      darkMode: false,
+      fontFamily: fontFamily || 'PingFang SC, Microsoft YaHei, sans-serif',
     },
-    flowchart: { htmlLabels: false, useMaxWidth: true, wrappingWidth: 220 },
+    // 300 能容纳一行中英混排；默认 120 会把标签过早折行（doocs 用的也是 300）
+    flowchart: { htmlLabels: false, useMaxWidth: true, wrappingWidth: 300 },
     sequence: { useMaxWidth: true },
     gantt: { useMaxWidth: true },
   };
@@ -93,7 +106,8 @@ function remember(key: string, svg: string) {
 }
 
 export interface MermaidOptions {
-  accent: string;
+  /** 图表已改用 mermaid 内置调色板，主色不再影响出图；保留字段是为了不牵动调用方 */
+  accent?: string;
   fontFamily?: string;
 }
 
@@ -112,7 +126,8 @@ export function renderMermaid(code: string, options: MermaidOptions): Promise<Me
   }
 
   const fontFamily = options.fontFamily ?? '';
-  const key = `${options.accent}\u0000${fontFamily}\u0000${code}`;
+  // 缓存键只含「源码 + 字体」：配色不再随文章主色变化，换主色不该重排图
+  const key = `${fontFamily}\u0000${code}`;
 
   const cached = svgCache.get(key);
   if (cached) {
@@ -128,7 +143,7 @@ export function renderMermaid(code: string, options: MermaidOptions): Promise<Me
     renderSeq += 1;
     const id = `md-mermaid-${renderSeq}`;
     return loadMermaid().then((mermaid) => {
-      mermaid.initialize(themeConfig(options.accent, fontFamily));
+      mermaid.initialize(themeConfig(fontFamily));
       return mermaid.render(id, code);
     });
   })
@@ -143,6 +158,10 @@ export function renderMermaid(code: string, options: MermaidOptions): Promise<Me
     .catch((error: unknown): MermaidRenderResult => {
       const detail = error instanceof Error ? error.message : String(error);
       console.warn('[mermaid] 渲染失败', error);
+      // 加载失败和语法错误要给不同提示，否则用户会去改根本没写错的图表
+      if (isImportFailure(error)) {
+        return { ok: false, message: '图表组件加载失败：刷新页面即可恢复（本地开发改过依赖后需重启 dev server）' };
+      }
       return { ok: false, message: `图表语法有误：${detail.split('\n')[0]}` };
     })
     .finally(() => {

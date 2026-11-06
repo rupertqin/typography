@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Shuffle, Undo2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Shuffle } from 'lucide-react';
 import { ARTICLE_TYPES } from '../../lib/constants';
 import { THEMES } from '../../lib/themes';
 import type { Theme } from '../../lib/themes';
@@ -21,7 +21,6 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
   const articleType = useTypographyStore((state) => state.articleType);
   const setArticleType = useTypographyStore((state) => state.setArticleType);
   const [themeOpen, setThemeOpen] = useState(false);
-  const [revertTheme, setRevertTheme] = useState<Theme | null>(null);
 
   const wrapper = useRef<HTMLDivElement>(null);
   const recents = useRef<string[]>([]);
@@ -60,7 +59,6 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
   const remember = (id: string) => {
     recents.current = [id, ...recents.current.filter((item) => item !== id)].slice(0, 4);
     setThemeId(id);
-    setRevertTheme(null);
   };
 
   const step = (delta: number) => {
@@ -74,9 +72,7 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
     const others = themes.filter((item) => item.id !== theme.id);
     const fresh = others.filter((item) => !recents.current.includes(item.id));
     const pool = fresh.length ? fresh : others.length ? others : themes;
-    const previous = revertTheme ?? theme;
     remember(pool[Math.floor(Math.random() * pool.length)].id);
-    setRevertTheme(previous);
   };
 
   return (
@@ -131,18 +127,6 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
           随机
           {typeName && <span className="hidden text-xs text-zinc-400 sm:inline">· {typeName}</span>}
         </button>
-
-        {revertTheme && (
-          <button
-            type="button"
-            onClick={() => remember(revertTheme.id)}
-            className={ICON_BUTTON}
-            title={`换回「${revertTheme.name}」`}
-            aria-label={`换回「${revertTheme.name}」`}
-          >
-            <Undo2 size={15} />
-          </button>
-        )}
 
       </div>
 

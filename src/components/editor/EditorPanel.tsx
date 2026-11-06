@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, RefObject } from 'react';
+import type { CSSProperties } from 'react';
 import { highlightMarkdownSource } from '../../lib/highlight-markdown';
 import { useTypographyStore } from '../../lib/store';
 import type { EditorController } from '../../lib/useEditorController';
 
 interface EditorPanelProps {
   editor: EditorController;
-  previewRef: RefObject<HTMLDivElement | null>;
-  isMobile: boolean;
   accent: string;
+  /** 与预览一致的正文字体栈（含可选字重） */
+  bodyFont: { stack: string; weight?: number };
+  /** 滚动时通知外层做编辑区 → 预览区同步 */
+  onScroll?: () => void;
 }
 
 /**
@@ -17,9 +19,8 @@ interface EditorPanelProps {
  * 插入工具条、撤销重做都搬到顶部 WorkbenchBar 了，状态在 useEditorController 里，
  * 这里只负责渲染和「高亮层跟着 textarea 滚动」这类纯视图的事。
  */
-export default function EditorPanel({ editor, previewRef, isMobile, accent }: EditorPanelProps) {
+export default function EditorPanel({ editor, accent, bodyFont, onScroll }: EditorPanelProps) {
   const markdown = useTypographyStore((state) => state.markdown);
-  const scrollSync = useTypographyStore((state) => state.scrollSync);
 
   const highlightLayer = useRef<HTMLPreElement>(null);
   // 中文输入法组词时，浏览器用 textarea 自己的颜色画候字；字透明就看不清，
@@ -27,6 +28,12 @@ export default function EditorPanel({ editor, previewRef, isMobile, accent }: Ed
   const [composing, setComposing] = useState(false);
 
   const highlighted = useMemo(() => highlightMarkdownSource(markdown), [markdown]);
+
+  // 编辑区与预览用同一套正文字体；两层（高亮层 / textarea）必须完全一致，否则光标会错位
+  const bodyFontStyle = useMemo<CSSProperties>(
+    () => ({ fontFamily: bodyFont.stack, fontWeight: bodyFont.weight }),
+    [bodyFont.stack, bodyFont.weight],
+  );
 
   /** 高亮层和 textarea 必须严丝合缝地对齐：同步滚动 + 让出滚动条宽度 */
   const syncHighlight = () => {
@@ -52,14 +59,6 @@ export default function EditorPanel({ editor, previewRef, isMobile, accent }: Ed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const scrollToPreview = () => {
-    const source = editor.textareaRef.current;
-    const target = previewRef.current;
-    if (!source || !target || isMobile || !scrollSync) return;
-    const range = source.scrollHeight - source.clientHeight;
-    target.scrollTop = range > 0 ? (source.scrollTop / range) * (target.scrollHeight - target.clientHeight) : 0;
-  };
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 bg-white">
       {/* 编辑区不画边框：doocs 的 CodeMirror 也是整块留白，边界由中缝分隔条负责 */}
@@ -70,8 +69,11 @@ export default function EditorPanel({ editor, previewRef, isMobile, accent }: Ed
         <pre
           ref={highlightLayer}
           aria-hidden="true"
-          className="md-editor-highlight pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words px-5 py-4 font-mono text-[13px] leading-relaxed"
-          style={{ opacity: composing ? 0 : 1 }}
+          className="md-editor-highlight pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words px-5 py-4 text-[13px] leading-relaxed"
+          style={{
+            ...bodyFontStyle,
+            opacity: composing ? 0 : 1,
+          }}
           dangerouslySetInnerHTML={{ __html: highlighted }}
         />
         <textarea
@@ -82,14 +84,15 @@ export default function EditorPanel({ editor, previewRef, isMobile, accent }: Ed
           onKeyDown={editor.handleKeyDown}
           onScroll={() => {
             syncHighlight();
-            scrollToPreview();
+            onScroll?.();
           }}
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={() => setComposing(false)}
           placeholder="在这里写 Markdown，右边实时预览……"
           aria-label="Markdown 编辑区"
           spellCheck={false}
-          className={`absolute inset-0 h-full w-full resize-none bg-transparent px-5 py-4 font-mono text-[13px] leading-relaxed caret-zinc-800 outline-none selection:bg-zinc-900/10 placeholder-zinc-300 ${
+          style={bodyFontStyle}
+          className={`thin-scrollbar absolute inset-0 h-full w-full resize-none bg-transparent px-5 py-4 text-[13px] leading-relaxed caret-zinc-800 outline-none selection:bg-zinc-900/10 placeholder-zinc-300 ${
             composing ? 'text-zinc-800' : 'text-transparent'
           }`}
         />

@@ -89,9 +89,13 @@ export default function StatusBar() {
           aria-label={scrollSync ? '关闭编辑与预览的滚动同步' : '开启编辑与预览的滚动同步'}
           title={scrollSync ? '关闭滚动同步' : '开启滚动同步'}
           aria-pressed={scrollSync}
-          className={`${ICON_BUTTON} hidden lg:flex ${scrollSync ? 'text-zinc-900' : 'text-zinc-400'}`}
+          className={`${ICON_BUTTON} flex ${scrollSync ? 'text-zinc-900' : 'text-zinc-400'}`}
         >
-          <ArrowUpDown size={12} />
+          {/* 关闭时在箭头上压一道斜杠：图标态也要一眼看出有没有开 */}
+          <span className="relative flex items-center justify-center">
+            <ArrowUpDown size={12} />
+            {!scrollSync && <span className="absolute h-px w-3.5 rotate-45 bg-current" aria-hidden />}
+          </span>
         </button>
       </div>
     </footer>

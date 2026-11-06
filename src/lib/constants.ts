@@ -1,4 +1,5 @@
 import type { ArticleType, ColorPreset } from "./types";
+import { FONT_SANS, FONT_SERIF } from "./themes/fonts";
 
 /** 文章类型：与原站一致，用于主题推荐筛选 */
 export const ARTICLE_TYPES: ArticleType[] = [
@@ -55,9 +56,8 @@ export const PART_COLOR_PRESETS: ColorPreset[] = [
 /** 预览缩放档位 */
 export const ZOOM_LEVELS = [1, 0.75, 0.5];
 
-/** 行高档位：'theme' 表示沿用每套主题自己的节奏 */
+/** 行距档位：没有「主题」项，未选时仍沿用每套主题自己的节奏 */
 export const LINE_HEIGHT_OPTIONS: Array<{ value: 'theme' | number; label: string; hint: string }> = [
-  { value: 'theme', label: '主题', hint: '默认' },
   { value: 1.5, label: '1.5', hint: '紧凑' },
   { value: 1.65, label: '1.65', hint: '稍紧' },
   { value: 1.75, label: '1.75', hint: '推荐' },
@@ -97,11 +97,11 @@ export const BLOCKQUOTE_BG_OPTIONS = [
 
 /** 整体字号档位：按比例缩放主题里的 px 字号，复制到公众号后同样生效 */
 export const FONT_SCALES = [
-  { value: 0.8, label: "极小" },
+  { value: 0.7, label: "更小" },
   { value: 0.9, label: "小" },
   { value: 1, label: "标准" },
   { value: 1.1, label: "大" },
-  { value: 1.25, label: "极大" },
+  { value: 1.4, label: "更大" },
 ];
 
 /**
@@ -121,14 +121,12 @@ export interface FontFamilyPreset {
 }
 
 export const FONT_FAMILIES: FontFamilyPreset[] = [
-  { id: "theme", label: "主题字体", stack: "" },
   {
     id: "sans",
     label: "黑体",
-    stack:
-      "-apple-system-font,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif",
+    stack: FONT_SANS,
   },
-  { id: "song", label: "宋体", stack: "Songti SC,STSong,SimSun,serif" },
+  { id: "song", label: "宋体", stack: FONT_SERIF },
   { id: "kai", label: "楷体", stack: "Kaiti SC,STKaiti,KaiTi,serif" },
   /**
    * 苹果系统字体（安卓没有，会回退到系统默认）。

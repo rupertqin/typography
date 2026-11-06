@@ -2,6 +2,7 @@ import { ArrowUp, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import type { RefObject } from 'react';
 import { FONT_FAMILIES, ZOOM_LEVELS } from '../../lib/constants';
+import { themeBodyFont, themeFontId } from '../../lib/themes/fonts';
 import { isHexColor } from '../../lib/recolor';
 import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/themes';
@@ -12,6 +13,8 @@ interface PreviewPanelProps {
   html: string;
   hasContent: boolean;
   scrollerRef: RefObject<HTMLDivElement | null>;
+  /** 滚动时通知外层做预览区 → 编辑区同步 */
+  onScroll?: () => void;
   articleRef: RefObject<HTMLDivElement | null>;
   /** 复制进行中：盖一层遮罩，避免用户以为没反应 */
   copying: boolean;
@@ -28,6 +31,7 @@ export default function PreviewPanel({
   html,
   hasContent,
   scrollerRef,
+  onScroll,
   articleRef,
   copying,
 }: PreviewPanelProps) {
@@ -39,11 +43,13 @@ export default function PreviewPanel({
 
   const [scrolled, setScrolled] = useState(false);
 
-  const fontPreset = FONT_FAMILIES.find((font) => font.id === fontFamilyId);
+  const effectiveFontId = fontFamilyId === 'theme' ? themeFontId(theme.styles.wrapper) : fontFamilyId;
+  const fontPreset = FONT_FAMILIES.find((font) => font.id === effectiveFontId);
+  const bodyFontStack = fontPreset?.stack || themeBodyFont(theme.styles.wrapper);
   // 图表配色跟随主色与正文字体：预览里看到的图，复制出去也是同一套
   useMermaidHydration(articleRef, {
     accent: isHexColor(mainColor) ? mainColor : theme.accent,
-    fontFamily: fontPreset?.stack ?? '',
+    fontFamily: bodyFontStack,
     revision: html,
   });
 
@@ -56,8 +62,10 @@ export default function PreviewPanel({
         onScroll={(event) => {
           const next = event.currentTarget.scrollTop > 240;
           if (next !== scrolled) setScrolled(next);
+          onScroll?.();
         }}
-        className="thin-scrollbar min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"
+        data-preview-scroll
+        className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"
       >
         <div
           className={`relative mx-auto min-h-full ${paperWidth} border-x border-zinc-200 bg-white px-4 py-5 shadow-xl shadow-zinc-900/5`}

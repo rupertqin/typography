@@ -68,10 +68,13 @@ export default function SplitPane({ editor, preview, isMobile }: SplitPaneProps)
           data-split-handle
           onPointerDown={startDrag}
           onDoubleClick={() => setSplitRatio(SPLIT_RATIO_DEFAULT)}
-          className="group relative z-10 flex w-1.5 shrink-0 cursor-col-resize items-center justify-center bg-zinc-200 transition-colors hover:bg-zinc-300"
+          // 同 doocs：中缝只占 1px（编辑区滚动条因此紧贴竖线），
+          // 拖拽热区靠一层绝对定位的透明条向两侧各溢出 4px，不占布局宽度
+          className="group relative z-10 flex w-px shrink-0 cursor-col-resize items-stretch justify-center"
           title="拖动调整宽度，双击恢复 50/50"
         >
-          <span className="h-8 w-0.5 rounded-full bg-white/70 group-hover:bg-white" />
+          <span className="absolute inset-y-0 -left-1 -right-1" aria-hidden />
+          <span className="relative w-px bg-zinc-200 transition-colors group-hover:bg-zinc-300" />
         </div>
       )}
 

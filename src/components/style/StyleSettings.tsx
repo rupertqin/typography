@@ -14,6 +14,7 @@ import { useTypographyStore } from '../../lib/store';
 import type { ColorPreset, HeadingLevels, HeadingStyleType } from '../../lib/types';
 import type { Theme } from '../../lib/themes';
 import ChoiceGroup from '../ui/ChoiceGroup';
+import { Swatch, SwatchInput } from '../ui/ColorSwatch';
 import Row from '../ui/Row';
 import CodeThemePicker from './CodeThemePicker';
 
@@ -23,66 +24,23 @@ const LEVELS: Array<{ id: HeadingLevels; name: string }> = [
   { id: 'h3', name: '三级标题' },
 ];
 
-const SWATCH =
-  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-black/10 transition-transform hover:scale-110';
+/** 正文左右边距档位：没有「主题」项，未选时沿用主题自带留白 */
+const PAGE_PADDING_OPTIONS: Array<{ value: 'theme' | number; label: string; title: string }> = [
+  { value: 0, label: '0', title: '左右不留白（0px）' },
+  { value: 8, label: '8', title: '左右各留 8px' },
+  { value: 16, label: '16', title: '左右各留 16px' },
+  { value: 24, label: '24', title: '左右各留 24px' },
+  { value: 32, label: '32', title: '左右各留 32px' },
+];
 
 function sameColor(left: string, right: string) {
   return left.toLowerCase() === right.toLowerCase();
 }
 
-function Swatch({
-  color,
-  name,
-  active,
-  onClick,
-}: ColorPreset & { active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={name}
-      aria-label={`使用${name}`}
-      aria-pressed={active}
-      className={`${SWATCH} ${active ? 'ring-2 ring-zinc-900 ring-offset-2 ring-offset-white' : ''}`}
-      style={{ background: color }}
-    >
-      {active && <Check size={12} className="text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.55)]" />}
-    </button>
-  );
-}
-
-function CustomSwatch({
-  value,
-  fallback,
-  presets,
-  onChange,
-}: {
-  value: string;
-  fallback: string;
-  presets: ColorPreset[];
-  onChange: (color: string) => void;
-}) {
-  const custom = Boolean(value) && !presets.some((preset) => sameColor(preset.color, value));
-  return (
-    <label
-      title="自定义颜色"
-      className={`relative ${SWATCH} ${custom ? 'ring-2 ring-zinc-900 ring-offset-2 ring-offset-white' : ''}`}
-      style={{
-        background: custom
-          ? value
-          : 'conic-gradient(#f43f5e,#f59e0b,#22c55e,#06b6d4,#6366f1,#d946ef,#f43f5e)',
-      }}
-    >
-      {custom && <Check size={12} className="text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.55)]" />}
-      <input
-        type="color"
-        value={value || fallback}
-        onChange={(event) => onChange(event.target.value)}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-        aria-label="自定义颜色"
-      />
-    </label>
-  );
+/** 这处颜色是不是预设之外的「自定义色」——是的话取色块要显示实色 */
+function customOf(value: string, presets: ColorPreset[]): string {
+  if (!isHexColor(value)) return '';
+  return presets.some((preset) => sameColor(preset.color, value)) ? '' : value;
 }
 
 /** 标题样式的四个小样：用两笔示意边框位置，比纯文字更快看懂 */
@@ -115,35 +73,6 @@ function StyleGlyph({ style, accent }: { style: HeadingStyleType; accent: string
   );
 }
 
-/** 自定义颜色的取色块（链接色、引用底色这类只调一个值的地方用） */
-function ColorDot({
-  value,
-  fallback,
-  onChange,
-  label,
-}: {
-  value: string;
-  fallback: string;
-  onChange: (color: string) => void;
-  label: string;
-}) {
-  return (
-    <label
-      title="自定义颜色"
-      className="relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-zinc-200 transition-colors hover:border-zinc-300"
-      style={{ background: value || fallback }}
-    >
-      <input
-        type="color"
-        value={isHexColor(value) ? value : fallback}
-        onChange={(event) => onChange(event.target.value)}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-        aria-label={label}
-      />
-    </label>
-  );
-}
-
 /**
  * 配色 + 排版合在一起的一页设置（参考 doocs-md 样式面板的属性表）：
  * 左侧固定宽度标签、右侧控件的检查器布局，宽屏两列并排，尽可能少占竖向空间。
@@ -157,11 +86,13 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
   const blockSpacing = useTypographyStore((state) => state.blockSpacing);
   const blockquoteBackground = useTypographyStore((state) => state.blockquoteBackground);
   const headingStyles = useTypographyStore((state) => state.headingStyles);
+  const pagePaddingX = useTypographyStore((state) => state.pagePaddingX);
   const linkColor = useTypographyStore((state) => state.partColors.link ?? '');
   const setLineHeight = useTypographyStore((state) => state.setLineHeight);
   const setBlockSpacing = useTypographyStore((state) => state.setBlockSpacing);
   const setBlockquoteBackground = useTypographyStore((state) => state.setBlockquoteBackground);
   const setHeadingStyle = useTypographyStore((state) => state.setHeadingStyle);
+  const setPagePaddingX = useTypographyStore((state) => state.setPagePaddingX);
 
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? (mainColor || theme.accent);
@@ -176,7 +107,8 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
 
   return (
     <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <div className="grid grid-cols-1 gap-x-8 gap-y-2 lg:grid-cols-2">
+      {/* 两列之间留足间距：左列右侧是色板/胶囊，右列左侧是标签，挤在一起会看不清归属 */}
+      <div className="grid grid-cols-1 gap-x-10 gap-y-2 lg:grid-cols-2 lg:gap-x-14 xl:gap-x-20">
         <Row label="主色" hint="标题、引用、加粗、分割线一起换成这个色系">
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -192,7 +124,7 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
               }`}
             >
               <span
-                className="h-4 w-4 rounded-full ring-1 ring-inset ring-black/10"
+                className="h-4 w-4 rounded-[4px] ring-1 ring-inset ring-black/10"
                 style={{ background: theme.accent }}
               />
               模板原色
@@ -226,10 +158,11 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
                 }}
               />
             ))}
-            <CustomSwatch
-              value={mainColor}
+            <SwatchInput
+              value={customOf(mainColor, MAIN_COLOR_PRESETS)}
               fallback={theme.accent}
-              presets={MAIN_COLOR_PRESETS}
+              label="主色自定义"
+              title="自定义主色"
               onChange={(color) => {
                 setMainColor(color);
                 setDraft(null);
@@ -238,7 +171,7 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
           </div>
         </Row>
 
-        <Row label="行高" hint="代码块保持自身节奏，不跟着变">
+        <Row label="行距" hint="未选时沿用主题自身行距；代码块保持自己的节奏">
           <ChoiceGroup
             options={LINE_HEIGHT_OPTIONS.map((option) => ({
               value: option.value,
@@ -247,7 +180,7 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
             }))}
             value={lineHeight}
             onChange={setLineHeight}
-            ariaLabel={(option) => `行高${option.label}`}
+            ariaLabel={(option) => `行距${option.label}`}
           />
         </Row>
 
@@ -279,11 +212,12 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
               onChange={(value) => setPartColor('link', value)}
               ariaLabel={(option) => `链接色${option.label}`}
             />
-            <ColorDot
-              value={linkColor}
+            <SwatchInput
+              value={customOf(linkColor, LINK_COLOR_OPTIONS)}
               fallback={accent}
               onChange={(color) => setPartColor('link', color)}
               label="链接色自定义"
+              title="链接色自定义"
             />
           </div>
         </Row>
@@ -304,13 +238,23 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
               onChange={setBlockquoteBackground}
               ariaLabel={(option) => `引用底色${option.label}`}
             />
-            <ColorDot
+            <SwatchInput
               value={isHexColor(blockquoteBackground) ? blockquoteBackground : ''}
               fallback={theme.accent}
               onChange={(color) => setBlockquoteBackground(color)}
               label="引用底色自定义"
+              title="引用底色自定义"
             />
           </div>
+        </Row>
+
+        <Row label="左右边距" hint="未选时沿用主题自带留白；预览与复制到公众号一致">
+          <ChoiceGroup
+            options={PAGE_PADDING_OPTIONS}
+            value={pagePaddingX}
+            onChange={setPagePaddingX}
+            ariaLabel={(option) => `左右边距${option.label}`}
+          />
         </Row>
 
         <Row label="代码配色" hint={`默认跟随「${theme.name}」，可单独指定`}>
@@ -375,10 +319,11 @@ export default function StyleSettings({ theme }: { theme: Theme }) {
                         onClick={() => setPartColor(part.id, preset.color)}
                       />
                     ))}
-                    <CustomSwatch
-                      value={value}
+                    <SwatchInput
+                      value={customOf(value, PART_COLOR_PRESETS)}
                       fallback={mainColor || theme.accent}
-                      presets={PART_COLOR_PRESETS}
+                      label={`${part.name}自定义颜色`}
+                      title={`${part.name}：自定义颜色`}
                       onChange={(color) => setPartColor(part.id, color)}
                     />
                   </div>

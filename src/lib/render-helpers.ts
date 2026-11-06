@@ -365,6 +365,19 @@ export function applyBlockquoteBackground(root: Element, background: string): vo
   });
 }
 
+/**
+ * 正文左右边距：只写 padding-left / padding-right，追加在根 section 的 style 尾部。
+ *
+ * 主题 wrapper 里常见 `padding:20px 16px;` 这类简写，长写放在后面才能压过它的左右值，
+ * 又不会动上下留白。'theme' 表示不干预，保证默认输出与改造前逐字节一致。
+ */
+export function applyPagePadding(root: Element, value: 'theme' | number): void {
+  if (value === 'theme' || typeof value !== 'number' || !Number.isFinite(value)) return;
+  const px = Math.min(64, Math.max(0, Math.round(value)));
+  const withLeft = setDecl(root.getAttribute('style'), 'padding-left', `${px}px`);
+  root.setAttribute('style', setDecl(withLeft, 'padding-right', `${px}px`));
+}
+
 const LEVEL_BORDER_WIDTH: Record<string, string> = { borderBottom: '2px', borderLeft: '4px' };
 
 /**

@@ -139,6 +139,13 @@ const LAZY: Record<string, () => Promise<{ default: Parameters<typeof hljs.regis
   x86asm: () => import('highlight.js/lib/languages/x86asm'),
 };
 
+/**
+ * 这些语言名不是 highlight.js 语法，而是图表/扩展渲染入口：
+ * mermaid 走自己的 SVG 渲染，plantuml / infographic 是 doocs 的扩展语法。
+ * 不拦截的话会去 CDN 找同名语法包（404），控制台一片报错。
+ */
+const NON_HLJS = new Set(['mermaid', 'plantuml', 'infographic']);
+
 const pending = new Map<string, Promise<void>>();
 
 /** 代码块里写的语言名 → 正式语言名（未知的保留原样，交给 CDN 试一次） */
@@ -172,7 +179,7 @@ async function loadFromCdn(name: string): Promise<boolean> {
  */
 export function ensureLanguage(raw: string): Promise<void> {
   const name = resolveLanguage(raw);
-  if (!name || hljs.getLanguage(name)) return Promise.resolve();
+  if (!name || NON_HLJS.has(name) || hljs.getLanguage(name)) return Promise.resolve();
 
   const running = pending.get(name);
   if (running) return running;
@@ -202,7 +209,7 @@ export function collectCodeLanguages(markdown: string): string[] {
   let match = FENCE_LANGUAGE.exec(markdown);
   while (match) {
     const name = resolveLanguage(match[1]);
-    if (name && name !== 'mermaid') found.add(name);
+    if (name && !NON_HLJS.has(name)) found.add(name);
     match = FENCE_LANGUAGE.exec(markdown);
   }
   return Array.from(found);
