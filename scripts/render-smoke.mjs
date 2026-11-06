@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 渲染管线冒烟测试：用 esbuild 把 TS 入口打成临时模块，在 Node + jsdom 下跑 35 套主题。
+ * 渲染管线冒烟测试：用 esbuild 把 TS 入口打成临时模块，在 Node + jsdom 下跑全部主题（35 套原包主题 + 3 套 md.doocs 移植主题）。
  * 不访问目标站，只验证本地移植的渲染/配色逻辑。
  */
 import { build } from 'esbuild';

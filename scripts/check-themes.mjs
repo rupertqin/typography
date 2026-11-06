@@ -3,7 +3,12 @@
  * 主题模块冒烟校验：结构、数量、顺序、装饰函数可调用。
  * 任何切片偏移错误都会在这里炸掉，而不是在浏览器里静默渲染成空样式。
  */
-import { THEMES, THEME_FONTS } from '../src/lib/themes.generated.js';
+import { THEMES as GENERATED_THEMES, THEME_FONTS } from '../src/lib/themes.generated.js';
+import { MD_THEMES } from '../src/lib/themes.extra.js';
+
+// 总表 = 原包切出来的 35 套 + 从 md.doocs 移植的 3 套
+const THEMES = [...GENERATED_THEMES, ...MD_THEMES];
+const GENERATED_THEME_COUNT = GENERATED_THEMES.length;
 
 const EXPECTED_IDS = [
   'simple', 'orange', 'mint', 'green', 'forest', 'blue', 'ocean', 'violet', 'rose',
@@ -11,6 +16,8 @@ const EXPECTED_IDS = [
   'festival', 'terminal', 'docs', 'magazine', 'pop', 'timeline', 'seal', 'whisper',
   'neon', 'kraft', 'briefing', 'bubble', 'inkwash', 'nordic', 'candy', 'feed',
   'checklist',
+  // 从 md.doocs 移植的三套（手写在 themes.extra.ts）
+  'md-classic', 'md-grace', 'md-simple',
 ];
 
 const REQUIRED_STYLES = [
@@ -23,7 +30,10 @@ const REQUIRED_STYLES = [
 const errors = [];
 
 if (!Array.isArray(THEMES)) errors.push('THEMES 不是数组');
-else if (THEMES.length !== 35) errors.push(`主题数量 ${THEMES.length}，期望 35`);
+else if (THEMES.length !== EXPECTED_IDS.length) {
+  errors.push(`主题数量 ${THEMES.length}，期望 ${EXPECTED_IDS.length}`);
+}
+if (GENERATED_THEME_COUNT !== 35) errors.push(`生成的主题数量 ${GENERATED_THEME_COUNT}，期望 35`);
 
 const ids = THEMES.map((t) => t.id);
 if (ids.join(',') !== EXPECTED_IDS.join(',')) {

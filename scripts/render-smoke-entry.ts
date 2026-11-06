@@ -8,7 +8,7 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>');
 (globalThis as any).document = dom.window.document;
 
 const { renderMarkdown } = await import('../src/lib/render');
-const { THEMES } = await import('../src/lib/themes.generated.js');
+const { THEMES } = await import('../src/lib/themes');
 const { SAMPLE_MARKDOWN } = await import('../src/lib/sample');
 const { applyColorOverrides, isHexColor } = await import('../src/lib/recolor');
 const { FONT_FAMILIES } = await import('../src/lib/constants');

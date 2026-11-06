@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, Palette, Shuffle, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { FOLLOW_THEME_CODE } from '../../lib/code-themes';
 import { ARTICLE_TYPES } from '../../lib/constants';
-import { THEMES } from '../../lib/themes.generated.js';
+import { THEMES } from '../../lib/themes';
 import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/types';
 import ColorPanel from '../color/ColorPanel';

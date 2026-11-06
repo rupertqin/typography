@@ -61,7 +61,7 @@ win.matchMedia = () => ({
 g.matchMedia = win.matchMedia;
 
 const { createRoot } = await import('react-dom/client');
-const { THEMES } = await import('../src/lib/themes.generated.js');
+const { THEMES } = await import('../src/lib/themes');
 const { useTypographyStore } = await import('../src/lib/store');
 const { EditorHistory } = await import('../src/lib/history');
 const { createElement } = await import('react');
@@ -91,7 +91,7 @@ try {
   expect(text().includes('橙心'), '默认主题不是橙心');
   expect(html().includes('公众号排版风格示例'), '预览未渲染示例文章');
   expect(html().includes('font-family:-apple-system'), '预览未注入主题样式');
-  expect(text().includes('35 套可选') || html().includes('35 套可选'), '示例正文未渲染');
+  expect(text().includes('38 套可选') || html().includes('38 套可选'), '示例正文未渲染');
 
   const buttons = Array.from(mount.querySelectorAll('button')) as HTMLButtonElement[];
   const byLabel = (label: string) => buttons.find((btn) => (btn.getAttribute('title') ?? '') === label);
@@ -102,7 +102,7 @@ try {
   await wait(120);
   expect(mount.querySelectorAll('[data-active]').length === 1, '主题菜单未标记当前主题');
   const miniCards = () => mount.querySelectorAll('div[style*="scale"]').length;
-  expect(miniCards() === 35, `主题卡数量 ${miniCards()}，期望 35`);
+  expect(miniCards() === THEMES.length, `主题卡数量 ${miniCards()}，期望 ${THEMES.length}`);
   expect(text().includes('干货教程'), '主题菜单缺少文章类型筛选');
   expect(text().includes('按文章类型推荐'), '主题菜单缺少推荐说明');
 
