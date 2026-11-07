@@ -282,6 +282,45 @@ if (!/<sup[^>]*>2<\/sup>/.test(inline)) problems.push('上标未生效');
 if (!/<sub[^>]*>2<\/sub>/.test(inline)) problems.push('下标未生效');
 if (!/<del[^>]*>删除<\/del>/.test(inline)) problems.push('删除线未生效');
 
+// 下划线 / 高亮：`++文字++` → 主色下划线，`==文字==` → 主色底 + 反白字（对齐 doocs-md）
+const markupHtml = renderMarkdown('前文 ++下划线++ 与 ==高亮== 后文', THEMES[0] as any);
+if (!markupHtml.includes('下划线') || !markupHtml.includes('高亮')) problems.push('下划线/高亮的正文丢了');
+if (!/text-decoration:underline;text-decoration-color:#[0-9a-f]{3,6};/i.test(markupHtml)) {
+  problems.push(`++下划线++ 没有生成带主色的下划线：${markupHtml.slice(0, 200)}`);
+}
+if (!/background-color:#[0-9a-f]{3,6};padding:2px 4px;border-radius:2px;color:#[0-9a-f]{3,6};/i.test(markupHtml)) {
+  problems.push(`==高亮== 没有生成主色底：${markupHtml.slice(0, 200)}`);
+}
+const markupRecolored = renderMarkdown('++下划线++', THEMES[0] as any, { colors: { main: '#1677ff', parts: {} } });
+if (!markupRecolored.includes('text-decoration-color:#1677ff')) problems.push('下划线颜色没有跟随主色');
+
+// 波浪线 `~文字~`（对齐 doocs-md），与下标、删除线共用 `~`，靠左边界区分
+const wavyHtml = renderMarkdown('前文 ~波浪线~ 后文', THEMES[0] as any);
+if (!wavyHtml.includes('波浪线')) problems.push('~波浪线~ 的正文丢了');
+if (!/text-decoration:underline wavy;text-decoration-color:#[0-9a-f]{3,6};/.test(wavyHtml)) {
+  problems.push(`~波浪线~ 没有生成波浪下划线：${wavyHtml.slice(0, 200)}`);
+}
+if (!wavyHtml.includes('text-decoration-thickness:2px')) problems.push('~波浪线~ 没有加粗波浪线');
+if (!/<sub[^>]*>2<\/sub>/.test(renderMarkdown('H~2~O', THEMES[0] as any))) {
+  problems.push('H~2~O 的下标被波浪线抢走了');
+}
+if (!/<del[^>]*>删除<\/del>/.test(renderMarkdown('~~删除~~', THEMES[0] as any))) {
+  problems.push('~~删除~~ 被波浪线抢走了');
+}
+
+// 边界：紧跟在 ASCII 字母数字后面、或内容首尾带空格的，都不算标记
+for (const md of ['C++是最好的语言', 'C++17', 'x==1==y', 'a == b', '++ 文字 ++', '== 高亮 ==', 'v1~2~3', '~ 文字 ~']) {
+  const out = renderMarkdown(md, THEMES[0] as any);
+  if (
+    out.includes('data-underline') ||
+    out.includes('data-highlight') ||
+    out.includes('data-wavyline') ||
+    /text-decoration:underline|underline wavy|padding:2px 4px/.test(out)
+  ) {
+    problems.push(`「${md}」不该被解析成下划线/高亮/波浪线：${out.slice(0, 160)}`);
+  }
+}
+
 /* ------------------------- 版式参数 / 代码配色 / Mermaid ------------------------- */
 
 const { DEFAULT_THEME_PARAMS, hasThemeParams } = await import('../src/lib/types');
@@ -417,19 +456,25 @@ if (!/background:rgba\(22,119,255/.test(quoteDoc.querySelector('blockquote')?.ge
   problems.push('引用底色的 accent 哨兵值没有跟随主色');
 }
 
-// 5.5) 左右边距：'theme' 不写 padding，指定值写进根 section 的长写属性
-const paddingDefault = parseHtml(renderMarkdown(PARAM_MD, paramTheme));
-const paddingDefaultStyle = paddingDefault.body.firstElementChild?.getAttribute('style') ?? '';
-if (paddingDefaultStyle.includes('padding-left:')) problems.push('默认参数下不该出现 padding-left');
-const paddedDoc = parseHtml(
-  renderMarkdown(PARAM_MD, paramTheme, { params: { ...DEFAULT_THEME_PARAMS, pagePaddingX: 16 } }),
+// 5.5) 左右边距：写进最外层 wrapper 的 margin-left/right（同公众号「边距」语义），
+// 'theme' 一个 margin 都不写；主题自带的卡片内距（padding）保持原样，两者叠加。
+const marginDefault = parseHtml(renderMarkdown(PARAM_MD, paramTheme));
+const marginDefaultStyle = marginDefault.body.firstElementChild?.getAttribute('style') ?? '';
+if (/margin-(?:left|right):/.test(marginDefaultStyle)) problems.push('默认参数下不该出现左右外边距');
+const marginDoc = parseHtml(
+  renderMarkdown(PARAM_MD, paramTheme, { params: { ...DEFAULT_THEME_PARAMS, pageMarginX: 16 } }),
 );
-const paddedStyle = paddedDoc.body.firstElementChild?.getAttribute('style') ?? '';
-if (!paddedStyle.includes('padding-left:16px')) problems.push(`左右边距没写进根 section：${paddedStyle}`);
-if (!paddedStyle.includes('padding-right:16px')) problems.push('左右边距只写了左侧');
-if (paddedStyle.indexOf('padding-left:16px') < paddedStyle.indexOf('padding:')) {
-  problems.push('左右边距必须追加在 padding 简写之后，否则覆盖不了左右值');
-}
+const marginStyle = marginDoc.body.firstElementChild?.getAttribute('style') ?? '';
+if (!marginStyle.includes('margin-left:16px')) problems.push(`左右边距没写进最外层 wrapper：${marginStyle}`);
+if (!marginStyle.includes('margin-right:16px')) problems.push('左右边距只写了左侧');
+// 有底色的主题：卡片内距不能被改写，边距加在卡片外侧（否则只是把文字推离底色）
+const inkTheme = (THEMES as any[]).find((theme) => theme.id === 'ink');
+const inkMarginStyle =
+  parseHtml(
+    renderMarkdown(PARAM_MD, inkTheme, { params: { ...DEFAULT_THEME_PARAMS, pageMarginX: 24 } }),
+  ).body.firstElementChild?.getAttribute('style') ?? '';
+if (!inkMarginStyle.includes('margin-left:24px')) problems.push('有底色的主题没有加外边距');
+if (!inkMarginStyle.includes('padding:20px 16px')) problems.push('有底色的主题卡片内距被改写了');
 
 // 6) 代码配色：token 色写死进内联样式，pre 底色跟着换
 if (CODE_THEME_LIST.length < 60) problems.push(`代码配色只有 ${CODE_THEME_LIST.length} 套，配色表可能被改坏`);
@@ -500,6 +545,24 @@ for (const token of ['mh-heading', 'mh-marker', 'mh-strong', 'mh-quote', 'mh-cod
 for (const kind of ['heading', 'strong', 'em', 'del', 'quote', 'list', 'table', 'code']) {
   if (!hlHtml.includes(`mh-marker-${kind}`)) problems.push(`Markdown 高亮缺少 ${kind} 类型标记`);
 }
+// 编辑区也要认出 ++下划线++ / ==高亮== / ~波浪线~，且 `C++`、`x==1`、`H~2~O` 保持原文
+const markupHl = highlightMarkdownSource('前文 ++下划线++ 与 ==高亮== 和 ~波浪线~ 后文');
+for (const token of [
+  'mh-underline',
+  'mh-marker-underline',
+  'mh-highlight',
+  'mh-marker-highlight',
+  'mh-wavyline',
+  'mh-marker-wavyline',
+]) {
+  if (!markupHl.includes(token)) problems.push(`Markdown 高亮缺少 ${token}`);
+}
+const markupLiteralHl = highlightMarkdownSource('C++17 与 x==1==y 与 H~2~O');
+if (markupLiteralHl.includes('mh-underline') || markupLiteralHl.includes('mh-highlight')) {
+  problems.push('编辑区把 C++ / x==1 误判成了下划线或高亮');
+}
+if (markupLiteralHl.includes('mh-wavyline')) problems.push('编辑区把 H~2~O 误判成了波浪线');
+if (!highlightMarkdownSource('~~删除~~').includes('mh-del')) problems.push('编辑区把 ~~删除~~ 误判成了波浪线');
 if (!hlHtml.includes('const a = 1;')) problems.push('Markdown 高亮的代码块内容丢失');
 if (!hlHtml.includes('&lt;div&gt;') || hlHtml.includes('<div>')) problems.push('Markdown 高亮没有转义 HTML');
 

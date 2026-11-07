@@ -432,16 +432,23 @@ export function themeLineHeight(wrapperStyle: string | undefined): number {
 }
 
 /**
- * 正文左右边距：只写 padding-left / padding-right，追加在根 section 的 style 尾部。
+ * 正文左右边距：作用对象是**最外层 wrapper**（styles.wrapper 那一层根 section），
+ * 语义对齐公众号后台的「边距」——整块正文（含底色卡片）一起往里收，而不是给卡片
+ * 加内衬。15 套主题把 `background` / `border-radius` / `padding` 写在这层上
+ * （`page` 里 11 套 + wrapper 里的 ink / sakura / forest / notebook），用外边距
+ * 才能让「有底色的主题」也跟着变窄；用内边距只会把文字从底色上推开、卡片反而更胖。
  *
- * 主题 wrapper 里常见 `padding:20px 16px;` 这类简写，长写放在后面才能压过它的左右值，
- * 又不会动上下留白。'theme' 表示不干预，保证默认输出与改造前逐字节一致。
+ * 主题自身的 `padding:22px 16px` 是卡片的内部留白，保留不动：最终留白 = 外边距 + 卡片内距，
+ * 跟公众号里「页边距 + 主题自带留白」的叠加方式一致。
+ *
+ * 只写 margin-left / margin-right，追加在根 section 的 style 尾部；'theme' 不干预，
+ * 保证默认输出与改造前逐字节一致。WRAPPER 没有 width 声明，auto 宽度不会溢出。
  */
-export function applyPagePadding(root: Element, value: 'theme' | number): void {
+export function applyPageMargin(root: Element, value: 'theme' | number): void {
   if (value === 'theme' || typeof value !== 'number' || !Number.isFinite(value)) return;
   const px = Math.min(64, Math.max(0, Math.round(value)));
-  const withLeft = setDecl(root.getAttribute('style'), 'padding-left', `${px}px`);
-  root.setAttribute('style', setDecl(withLeft, 'padding-right', `${px}px`));
+  const withLeft = setDecl(root.getAttribute('style'), 'margin-left', `${px}px`);
+  root.setAttribute('style', setDecl(withLeft, 'margin-right', `${px}px`));
 }
 
 const LEVEL_BORDER_WIDTH: Record<string, string> = { borderBottom: '2px', borderLeft: '4px' };

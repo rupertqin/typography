@@ -307,31 +307,31 @@ try {
   await wait(160);
   expect(useTypographyStore.getState().blockSpacing === 1.15, '段间距未写入 store');
 
-  // 左右边距的值必须绑在控件上：一打开就有一档选中（跟随主题时用主题自带的值），选了 0 就高亮 0
-  const paddingChips = () =>
+  // 左右边距是卡片外的留白（同公众号的「边距」）：跟随主题时不额外加，所以一开始 0 档选中
+  const marginChips = () =>
     Array.from(mount.querySelectorAll('button')).filter((btn) =>
       (btn.getAttribute('aria-label') ?? '').startsWith('左右边距'),
     );
-  const selectedPadding = () =>
-    paddingChips()
+  const selectedMargin = () =>
+    marginChips()
       .filter((btn) => btn.className.includes('ui-selected'))
       .map((btn) => btn.getAttribute('aria-label'));
   expect(
-    selectedPadding().length === 1,
-    `左右边距一开始没有选中档位：${selectedPadding().join(',') || '无'}`,
+    selectedMargin().length === 1,
+    `左右边距一开始没有选中档位：${selectedMargin().join(',') || '无'}`,
   );
   expect(Boolean(clickAria('左右边距0')), '样式区缺少左右边距档位');
   await wait(160);
-  expect(useTypographyStore.getState().pagePaddingX === 0, '左右边距 0 未写入 store');
-  expect(selectedPadding().join() === '左右边距0', `选了 0 之后 0 不是选中态：${selectedPadding().join(',')}`);
+  expect(useTypographyStore.getState().pageMarginX === 0, '左右边距 0 未写入 store');
+  expect(selectedMargin().join() === '左右边距0', `选了 0 之后 0 不是选中态：${selectedMargin().join(',')}`);
 
   expect(Boolean(clickAria('左右边距16')), '样式区缺少左右边距档位');
   await wait(180);
-  expect(useTypographyStore.getState().pagePaddingX === 16, '左右边距未写入 store');
-  const paddedStyle = articleRoot()?.getAttribute('style') ?? '';
+  expect(useTypographyStore.getState().pageMarginX === 16, '左右边距未写入 store');
+  const marginedStyle = articleRoot()?.getAttribute('style') ?? '';
   expect(
-    paddedStyle.includes('padding-left:16px') && paddedStyle.includes('padding-right:16px'),
-    `左右边距未作用到正文根容器：${paddedStyle}`,
+    marginedStyle.includes('margin-left:16px') && marginedStyle.includes('margin-right:16px'),
+    `左右边距没有作用到最外层 wrapper 的外边距：${marginedStyle}`,
   );
 
   const headingLevelSelect = mount.querySelector('select[aria-label="标题级别"]') as HTMLSelectElement | null;
@@ -431,23 +431,29 @@ try {
     ?.closest('div.flex.items-start');
   const partText = partRow?.textContent ?? '';
   expect(!/大标题|小标题|三级标题/.test(partText), `单独调色仍列着标题项：${partText}`);
-  // 布局按栏归位：左栏是颜色（主色/链接色/引用底色/单独调色），右栏是版式与标题
+  // 布局按块归位：基础色（主色/链接色/引用底色）一块、单独调色一块、版式与标题一块。
+  // 基础色与单独调色同一父容器（窄屏/两栏时叠在左栏），它的父级再与版式同层（xl 起三栏）。
   const rowOf = (label: string) =>
     Array.from(mount.querySelectorAll('span'))
       .find((node) => node.textContent?.trim() === label)
       ?.closest('div.flex.items-start') ?? null;
-  const leftCol = partRow?.parentElement ?? null;
-  const rightCol = headingStyleSelect()?.closest('div.flex.items-start')?.parentElement ?? null;
-  expect(Boolean(leftCol) && Boolean(rightCol), '样式区没有分出左右两栏');
-  expect(leftCol !== rightCol, '左右两栏是同一个容器');
-  expect(leftCol?.parentElement === rightCol?.parentElement, '左右两栏不在同一行');
-  for (const label of ['主色', '链接色', '引用底色', '单独调色']) {
-    expect(rowOf(label)?.parentElement === leftCol, `${label}应在左栏`);
+  const baseCol = rowOf('主色')?.parentElement ?? null;
+  const partCol = partRow?.parentElement ?? null;
+  const layoutCol =
+    rowOf('段间距')?.parentElement ?? headingStyleSelect()?.closest('div.flex.items-start')?.parentElement ?? null;
+  expect(Boolean(baseCol) && Boolean(partCol) && Boolean(layoutCol), '样式区没有分出三块');
+  expect(baseCol !== partCol, '单独调色没有独立成栏');
+  expect(baseCol?.parentElement === partCol?.parentElement, '单独调色与基础色不在同一个颜色组里');
+  expect(
+    baseCol?.parentElement?.parentElement === layoutCol?.parentElement,
+    '版式与标题没有和颜色组并列成栏',
+  );
+  for (const label of ['主色', '链接色', '引用底色']) {
+    expect(rowOf(label)?.parentElement === baseCol, `${label}应在基础色栏`);
   }
   for (const label of ['段间距', '行距', '左右边距', '标题样式', '代码配色']) {
-    expect(rowOf(label)?.parentElement === rightCol, `${label}应在右栏`);
+    expect(rowOf(label)?.parentElement === layoutCol, `${label}应在版式栏`);
   }
-  expect(!(partRow?.className ?? '').includes('col-span-2'), '单独调色仍然横跨两栏');
 
   const codeThemeSelect = mount.querySelector('select[aria-label="代码配色"]') as HTMLSelectElement | null;
   expect(Boolean(codeThemeSelect), '样式区缺少代码配色选择器');
@@ -498,9 +504,12 @@ try {
   await wait(200);
   expect(useTypographyStore.getState().lineHeight === 'theme', '重置样式没有重置行距');
   expect(useTypographyStore.getState().codeThemeId === 'theme', '重置样式没有重置代码配色');
-  expect(useTypographyStore.getState().pagePaddingX === 'theme', '重置样式没有重置左右边距');
+  expect(useTypographyStore.getState().pageMarginX === 'theme', '重置样式没有重置左右边距');
   expect(useTypographyStore.getState().mainColor === '', '重置样式没有重置主色');
-  expect(!(articleRoot()?.getAttribute('style') ?? '').includes('padding-left:'), '重置后正文仍带边距');
+  expect(
+    !/margin-(?:left|right):/.test(articleRoot()?.getAttribute('style') ?? ''),
+    '重置后正文仍带左右外边距',
+  );
   expect(!(articleRoot()?.querySelector('h2')?.getAttribute('style') ?? '').includes('border-bottom:2px'), '重置后标题仍是描边样式');
 
   win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -1030,7 +1039,7 @@ try {
       'blockquoteBackground',
       'headingStyles',
       'headingColors',
-      'pagePaddingX',
+      'pageMarginX',
       'viewMode',
       'previewDevice',
       'scrollSync',

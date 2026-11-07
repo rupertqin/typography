@@ -29,8 +29,8 @@ export interface TypographyState {
   headingStyles: Partial<Record<HeadingLevels, HeadingStyleType>>;
   /** 每级标题「自选颜色」的自定义文字色；空 = 跟随主题主色 */
   headingColors: Partial<Record<HeadingLevels, string>>;
-  /** 正文左右内边距；'theme' = 沿用主题 */
-  pagePaddingX: ThemeParams['pagePaddingX'];
+  /** 卡片外左右外边距（同公众号「边距」）；'theme' = 不额外加 */
+  pageMarginX: ThemeParams['pageMarginX'];
   /** 工作区布局（持久化，刷新后保持上次的分屏比例与视图） */
   viewMode: ViewMode;
   previewDevice: PreviewDevice;
@@ -52,7 +52,7 @@ export interface TypographyState {
   setBlockquoteBackground: (background: string) => void;
   setHeadingStyle: (level: HeadingLevels, style: HeadingStyleType) => void;
   setHeadingColor: (level: HeadingLevels, color: string) => void;
-  setPagePaddingX: (pagePaddingX: ThemeParams['pagePaddingX']) => void;
+  setPageMarginX: (pageMarginX: ThemeParams['pageMarginX']) => void;
   resetParams: () => void;
   setViewMode: (viewMode: ViewMode) => void;
   setPreviewDevice: (previewDevice: PreviewDevice) => void;
@@ -85,7 +85,7 @@ export const useTypographyStore = create<TypographyState>()(
       blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
       headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
       headingColors: { ...DEFAULT_THEME_PARAMS.headingColors },
-      pagePaddingX: DEFAULT_THEME_PARAMS.pagePaddingX,
+      pageMarginX: DEFAULT_THEME_PARAMS.pageMarginX,
       viewMode: 'split',
       previewDevice: 'mobile',
       scrollSync: true,
@@ -123,7 +123,7 @@ export const useTypographyStore = create<TypographyState>()(
           else delete next[level];
           return { headingColors: next };
         }),
-      setPagePaddingX: (pagePaddingX) => set({ pagePaddingX }),
+      setPageMarginX: (pageMarginX) => set({ pageMarginX }),
       resetParams: () =>
         set({
           lineHeight: DEFAULT_THEME_PARAMS.lineHeight,
@@ -131,7 +131,7 @@ export const useTypographyStore = create<TypographyState>()(
           blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
           headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
           headingColors: { ...DEFAULT_THEME_PARAMS.headingColors },
-          pagePaddingX: DEFAULT_THEME_PARAMS.pagePaddingX,
+          pageMarginX: DEFAULT_THEME_PARAMS.pageMarginX,
         }),
       setViewMode: (viewMode) => set({ viewMode }),
       setPreviewDevice: (previewDevice) => set({ previewDevice }),
@@ -159,6 +159,9 @@ export const useTypographyStore = create<TypographyState>()(
           for (const level of ['h1', 'h2', 'h3']) delete next[level];
           merged.partColors = next;
         }
+        // 「左右边距」从内边距改成了外边距（对齐公众号的边距语义），旧值不能沿用：
+        // 同一个数字现在作用在卡片外侧，迁移过去会凭空多出一圈留白，直接回到「不额外加」。
+        delete (merged as { pagePaddingX?: unknown }).pagePaddingX;
         return merged;
       },
     },
@@ -173,6 +176,6 @@ export function selectThemeParams(state: TypographyState): ThemeParams {
     blockquoteBackground: state.blockquoteBackground ?? DEFAULT_THEME_PARAMS.blockquoteBackground,
     headingStyles: state.headingStyles ?? DEFAULT_THEME_PARAMS.headingStyles,
     headingColors: state.headingColors ?? DEFAULT_THEME_PARAMS.headingColors,
-    pagePaddingX: state.pagePaddingX ?? DEFAULT_THEME_PARAMS.pagePaddingX,
+    pageMarginX: state.pageMarginX ?? DEFAULT_THEME_PARAMS.pageMarginX,
   };
 }

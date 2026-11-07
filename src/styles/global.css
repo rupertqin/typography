@@ -118,9 +118,6 @@
   .md-editor-highlight .mh-heading {
     color: var(--mh-accent, #047857);
     -webkit-text-stroke: 0.4px currentColor;
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
   }
 
   .md-editor-highlight .mh-strong {
@@ -136,6 +133,28 @@
   .md-editor-highlight .mh-del {
     color: #a1a1aa;
     text-decoration: line-through;
+  }
+
+  /* 下划线是 `++下划线++` 专属的标记：标题不再借用文字下划线，只留主色 + 描边 */
+  .md-editor-highlight .mh-underline {
+    text-decoration: underline;
+    text-decoration-color: var(--mh-accent, #047857);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  /* `~波浪线~`：与 `++下划线++` 同源，只把线型换成波浪 */
+  .md-editor-highlight .mh-wavyline {
+    text-decoration: underline wavy var(--mh-accent, #047857);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  /* `==高亮==` 在预览里是主色底 + 反白字；编辑区用同色系的浅底，免得正文读不清 */
+  .md-editor-highlight .mh-highlight {
+    color: var(--mh-accent, #047857);
+    background-color: color-mix(in srgb, var(--mh-accent, #047857) 14%, transparent);
+    border-radius: 2px;
   }
 
   .md-editor-highlight .mh-quote {
@@ -187,9 +206,6 @@
   .md-editor-highlight .mh-marker-heading {
     color: var(--mh-accent, #047857);
     -webkit-text-stroke: 0.4px currentColor;
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
   }
 
   .md-editor-highlight .mh-marker-strong {

@@ -41,10 +41,14 @@ const DISABLED_ICON_BUTTON = `${BARE_ICON_BUTTON} disabled:pointer-events-none d
 const GROUP_ICON_BUTTON = `${TOOL_BUTTON_BASE} h-full w-7 shrink-0`;
 const GROUP = 'flex h-8 shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-px';
 
-const SEGMENTED_BUTTON =
-  'inline-flex h-full shrink-0 items-center justify-center rounded px-1.5 text-xs tabular-nums transition-colors';
-const SEGMENTED_ACTIVE = 'ui-selected ui-selected-ring font-medium text-zinc-900';
-const SEGMENTED_IDLE = 'text-zinc-500 hover:text-zinc-800';
+/** 档位组的外壳：比工具条的 32px 控件矮一档，内衬 1px，选中环才有「框里套框」的层次 */
+const SEGMENT_GROUP = 'flex h-6 shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-px';
+
+/** 档位组的按钮：配 SEGMENT_GROUP 的矮壳，选中态走全站统一的 `.ui-selected`（1px 近黑环 + 浅灰底） */
+const SEGMENT_BUTTON =
+  'inline-flex h-full shrink-0 items-center justify-center rounded px-1.5 text-[11px] tabular-nums transition-colors';
+const SEGMENT_ACTIVE = 'ui-selected ui-selected-ring font-medium text-zinc-900';
+const SEGMENT_IDLE = 'text-zinc-500 hover:text-zinc-800';
 
 const UNDO_TITLE = '撤销（⌘/Ctrl + Z）';
 const REDO_TITLE = '重做（⌘/Ctrl + Shift + Z）';
@@ -155,10 +159,9 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
         {!isMobile && <ThemePicker theme={theme} inHeader />}
 
         <label
-          className="flex h-8 shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-1.5"
+          className="flex h-8 shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-2"
           title="正文字体：公众号只认读者设备自带的字体，选不到会回退系统默认"
         >
-          <span className="hidden text-xs text-zinc-400 sm:inline">字体</span>
           {/* 宽度跟着当前字体名走：一段不可见文字撑出宽度，下拉框铺在它上面。
               原生 select 会按最长的选项（「苹方简极细（限 iOS）」）撑宽，选到「黑体」也占那么大。 */}
           <span className="relative inline-flex h-full min-w-0 items-center">
@@ -192,8 +195,7 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           </span>
         </label>
 
-        <div className={GROUP} title="整体字号，复制到公众号后同样生效">
-          <span className="hidden pl-1 pr-0.5 text-xs text-zinc-400 sm:inline">字号</span>
+        <div className={SEGMENT_GROUP} title="整体字号，复制到公众号后同样生效">
           {FONT_SCALES.map((scale) => (
             <button
               key={scale.value}
@@ -201,21 +203,22 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
               onClick={() => setFontScale(scale.value)}
               aria-pressed={scale.value === fontScale}
               aria-label={`整体字号${scale.label}`}
-              className={`${SEGMENTED_BUTTON} ${scale.value === fontScale ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
+              className={`${SEGMENT_BUTTON} ${scale.value === fontScale ? SEGMENT_ACTIVE : SEGMENT_IDLE}`}
             >
               {scale.label}
             </button>
           ))}
         </div>
 
-        <div className={GROUP} title="缩小预览，一屏看整篇结构（不影响复制结果）">
+        <div className={SEGMENT_GROUP} title="缩放预览，一屏看整篇结构（只影响预览，不影响复制结果）">
           {ZOOM_LEVELS.map((level) => (
             <button
               key={level}
               type="button"
               onClick={() => setZoom(level)}
               aria-pressed={level === activeZoom}
-              className={`${SEGMENTED_BUTTON} ${level === activeZoom ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
+              aria-label={`预览缩放 ${level * 100}%`}
+              className={`${SEGMENT_BUTTON} ${level === activeZoom ? SEGMENT_ACTIVE : SEGMENT_IDLE}`}
             >
               {level * 100}%
             </button>

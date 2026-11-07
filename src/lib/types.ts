@@ -46,8 +46,8 @@ export interface ThemeParams {
   headingStyles: Partial<Record<HeadingLevels, HeadingStyleType>>;
   /** 每级标题「自选颜色」的自定义文字色；空 = 跟随主题主色 */
   headingColors?: Partial<Record<HeadingLevels, string>>;
-  /** 'theme' = 沿用主题自带的左右留白；数字为正文左右内边距（px） */
-  pagePaddingX: 'theme' | number;
+  /** 'theme' = 不额外加边距；数字为最外层 wrapper 的左右外边距（px，同公众号的「边距」） */
+  pageMarginX: 'theme' | number;
 }
 
 export const DEFAULT_THEME_PARAMS: ThemeParams = {
@@ -56,7 +56,7 @@ export const DEFAULT_THEME_PARAMS: ThemeParams = {
   blockquoteBackground: '',
   headingStyles: {},
   headingColors: {},
-  pagePaddingX: 'theme',
+  pageMarginX: 'theme',
 };
 
 export function hasThemeParams(params: ThemeParams | undefined): boolean {
@@ -64,7 +64,7 @@ export function hasThemeParams(params: ThemeParams | undefined): boolean {
   if (params.lineHeight !== 'theme') return true;
   if (params.blockSpacing !== 1) return true;
   if (params.blockquoteBackground) return true;
-  if (params.pagePaddingX !== 'theme') return true;
+  if (params.pageMarginX !== 'theme') return true;
   if (Object.values(params.headingColors ?? {}).some(Boolean)) return true;
   return Object.values(params.headingStyles).some((style) => style && style !== 'default');
 }

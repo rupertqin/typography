@@ -95,6 +95,23 @@ function mathPlaceholder(tex: string, display: boolean, raw: string): string {
   return `<span class="${MATH_CLASS}" ${MATH_ATTR}="${encoded}" ${MATH_DISPLAY_ATTR}="0" ${MATH_STATE_ATTR}="loading">${fallback}</span>`;
 }
 
+/**
+ * `++下划线++` / `==高亮==` 的左边界（对齐 doocs-md）：
+ * 定界符紧跟在 ASCII 字母数字后面就不认，`C++`、`C++17`、`x==1` 保持原文；
+ * 中文紧贴（`把++重点++标出`）照常解析。
+ */
+const WORD_CHAR = /[A-Z0-9]/i;
+
+/** src 只从候选位置往后给，左边界要从已切好的 tokens 里还原（取最后一个 token 的末尾字符） */
+function prevInlineChar(tokens?: any[]): string {
+  const last = tokens?.[tokens.length - 1];
+  if (!last) return '';
+  const nested = last.tokens;
+  if (Array.isArray(nested) && nested.length > 0) return prevInlineChar(nested);
+  const text: string = last.text ?? last.raw ?? '';
+  return text.charAt(text.length - 1);
+}
+
 const marked = new Marked({
   gfm: true,
   breaks: false,
@@ -246,6 +263,79 @@ const marked = new Marked({
       },
       renderer(token: any) {
         return `<sub>${this.parser.parseInline(token.tokens)}</sub>`;
+      },
+    },
+    /**
+     * 波浪线 `~文字~`（对齐 doocs-md 的 markup 扩展）。
+     *
+     * 和下标共用 `~`：marked 的扩展是后注册的先试（`unshift`），所以这条必须排在
+     * `sub` 后面，靠 doocs 的左边界规则把两者分开——`~` 紧跟在 ASCII 字母数字后面
+     * 不认（`H~2~O`、`v1~2~3` 留给 sub），`~波浪线~`、`前文~波浪~后文` 才是波浪线；
+     * `~~删除~~` 由删除线规则先吃掉。
+     */
+    {
+      name: 'wavyline',
+      level: 'inline',
+      start(src: string) {
+        // 跳过 `~~`：成对的双波浪线属于删除线，别把它切成两段纯文本
+        let from = 0;
+        for (;;) {
+          const index = src.indexOf('~', from);
+          if (index === -1) return undefined;
+          if (src[index + 1] === '~') {
+            from = index + 1;
+            continue;
+          }
+          return index;
+        }
+      },
+      tokenizer(src: string, tokens: any[]) {
+        if (WORD_CHAR.test(prevInlineChar(tokens))) return undefined;
+        const match = /^~(?=\S)([^~\n]*[^\s~])~(?!~)/.exec(src);
+        if (!match) return undefined;
+        return { type: 'wavyline', raw: match[0], tokens: this.lexer.inlineTokens(match[1]) };
+      },
+      renderer(token: any) {
+        return `<span data-wavyline>${this.parser.parseInline(token.tokens)}</span>`;
+      },
+    },
+    /**
+     * 下划线 / 高亮（对齐 doocs-md 的 markup 扩展）：
+     * `++下划线++` → 带主色下划线的 span，`==高亮==` → 主色底 + 反白文字。
+     *
+     * 与 doocs 的差别只有一处：公众号会丢掉 class，所以这里先吐 `data-underline` /
+     * `data-highlight` 标记，主色由 render.ts 在配色重映射之后写成内联样式。
+     */
+    {
+      name: 'underline',
+      level: 'inline',
+      start(src: string) {
+        return src.indexOf('++');
+      },
+      tokenizer(src: string, tokens: any[]) {
+        if (WORD_CHAR.test(prevInlineChar(tokens))) return undefined;
+        const match = /^\+\+(?=\S)((?:[^+]|\+(?!\+))*[^\s+])\+\+/.exec(src);
+        if (!match) return undefined;
+        return { type: 'underline', raw: match[0], tokens: this.lexer.inlineTokens(match[1]) };
+      },
+      renderer(token: any) {
+        return `<span data-underline>${this.parser.parseInline(token.tokens)}</span>`;
+      },
+    },
+    {
+      name: 'highlight',
+      level: 'inline',
+      start(src: string) {
+        return src.indexOf('==');
+      },
+      tokenizer(src: string, tokens: any[]) {
+        if (WORD_CHAR.test(prevInlineChar(tokens))) return undefined;
+        const match = /^==(?=\S)((?:[^=]|=(?!=))*[^\s=])==/.exec(src);
+        if (!match) return undefined;
+        return { type: 'highlight', raw: match[0], tokens: this.lexer.inlineTokens(match[1]) };
+      },
+      renderer(token: any) {
+        return `<span data-highlight>${this.parser.parseInline(token.tokens)}</span>`;
       },
     },
     {

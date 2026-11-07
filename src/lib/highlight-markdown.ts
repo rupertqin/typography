@@ -10,7 +10,7 @@ const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;'
 
 const escapeHtml = (text: string) => text.replace(/[&<>]/g, (char) => ESCAPES[char] ?? char);
 
-/** 行内：代码、图片、链接、脚注、加粗、删除线、斜体、裸链接 */
+/** 行内：代码、图片、链接、脚注、加粗、删除线、斜体、裸链接、高亮、下划线 */
 const INLINE = new RegExp(
   [
     '(`[^`\\n]+`)',
@@ -21,6 +21,9 @@ const INLINE = new RegExp(
     '(~~[^~\\n]+~~)',
     '(\\*[^*\\n]+\\*|_[^_\\n]+_)',
     '(<?https?:\\/\\/[^\\s)]+>?)',
+    '(==(?=\\S)(?:[^=\\n]|=(?!=))*[^\\s=]==)',
+    '(\\+\\+(?=\\S)(?:[^+\\n]|\\+(?!\\+))*[^\\s+]\\+\\+)',
+    '(~(?=\\S)[^~\\n]*[^\\s~]~(?!~))',
   ].join('|'),
   'g',
 );
@@ -36,7 +39,13 @@ const INLINE_RULES: { className: string; delimiter: number; marker?: string }[] 
   { className: 'mh-del', delimiter: 2, marker: 'del' },
   { className: 'mh-em', delimiter: 1, marker: 'em' },
   { className: 'mh-url', delimiter: 0 },
+  { className: 'mh-highlight', delimiter: 2, marker: 'highlight' },
+  { className: 'mh-underline', delimiter: 2, marker: 'underline' },
+  { className: 'mh-wavyline', delimiter: 1, marker: 'wavyline' },
 ];
+
+/** 定界符紧跟在 ASCII 字母数字后面不算标记：`C++`、`C++17`、`x==1` 保持原文 */
+const WORD_CHAR = /[A-Z0-9]/i;
 
 const wrap = (className: string, text: string) => `<span class="${className}">${escapeHtml(text)}</span>`;
 /** 语法标记带上类型，CSS 才能给标题的 #、加粗的 ** 等各自的样式 */
@@ -55,6 +64,17 @@ function highlightInline(text: string): string {
     while (group < INLINE_RULES.length && match[group] === undefined) group += 1;
     const rule = INLINE_RULES[group] ?? INLINE_RULES[0];
     const raw = match[0];
+
+    // 左边界守卫与预览侧一致：`C++`、`H~2~O` 这类紧跟在字母数字后面的不再当标记
+    if (
+      (rule.marker === 'underline' || rule.marker === 'highlight' || rule.marker === 'wavyline') &&
+      WORD_CHAR.test(text.charAt(match.index - 1))
+    ) {
+      out += escapeHtml(raw);
+      cursor = match.index + raw.length;
+      match = INLINE.exec(text);
+      continue;
+    }
 
     if (rule.delimiter > 0 && raw.length > rule.delimiter * 2) {
       const open = raw.slice(0, rule.delimiter);

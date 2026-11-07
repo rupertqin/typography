@@ -124,7 +124,6 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
         >
           <Shuffle size={14} />
           随机
-          {typeName && <span className="hidden text-xs text-zinc-400 sm:inline">· {typeName}</span>}
         </button>
 
       </div>

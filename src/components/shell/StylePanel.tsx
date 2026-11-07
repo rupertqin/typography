@@ -26,7 +26,7 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
   const blockquoteBackground = useTypographyStore((state) => state.blockquoteBackground);
   const headingCount = useTypographyStore((state) => Object.keys(state.headingStyles).length);
   const headingColorCount = useTypographyStore((state) => Object.keys(state.headingColors ?? {}).length);
-  const pagePaddingX = useTypographyStore((state) => state.pagePaddingX);
+  const pageMarginX = useTypographyStore((state) => state.pageMarginX);
   const codeThemeId = useTypographyStore((state) => state.codeThemeId);
   const resetColors = useTypographyStore((state) => state.resetColors);
   const resetParams = useTypographyStore((state) => state.resetParams);
@@ -47,7 +47,7 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
     Boolean(blockquoteBackground) ||
     headingCount > 0 ||
     headingColorCount > 0 ||
-    pagePaddingX !== 'theme' ||
+    pageMarginX !== 'theme' ||
     codeThemeId !== FOLLOW_THEME_CODE;
   const dirty = colorsDirty || paramsDirty;
 

@@ -1,6 +1,6 @@
 import { resolveCodeTheme } from './code-themes';
 import { parseMarkdown } from './markdown';
-import { applyColorOverrides, hasColorOverrides, isHexColor, rgbaFromHex } from './recolor';
+import { applyColorOverrides, hasColorOverrides, isHexColor, readableInk, rgbaFromHex } from './recolor';
 import {
   PART_SELECTORS,
   PRE_BAR_DOTS,
@@ -8,7 +8,7 @@ import {
   STYLE_KEY_BY_TAG,
   applyBlockSpacing,
   applyBlockquoteBackground,
-  applyPagePadding,
+  applyPageMargin,
   applyCard,
   applyCodeChrome,
   clearFirstChildTopMargin,
@@ -155,9 +155,29 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
     applyColorOverrides(root, theme.accent, overrides);
   }
 
+  // 主色在重映射之后才定下来：下划线颜色 / 高亮底色都跟着用户选的主色走
+  const accent = isHexColor(overrides.main) ? overrides.main : theme.accent;
+  root.querySelectorAll('[data-underline]').forEach((node) => {
+    node.setAttribute('style', `text-decoration:underline;text-decoration-color:${accent};`);
+    node.removeAttribute('data-underline');
+  });
+  root.querySelectorAll('[data-wavyline]').forEach((node) => {
+    node.setAttribute(
+      'style',
+      `text-decoration:underline wavy;text-decoration-color:${accent};text-decoration-thickness:2px;`,
+    );
+    node.removeAttribute('data-wavyline');
+  });
+  root.querySelectorAll('[data-highlight]').forEach((node) => {
+    node.setAttribute(
+      'style',
+      `background-color:${accent};padding:2px 4px;border-radius:2px;color:${readableInk(accent)};`,
+    );
+    node.removeAttribute('data-highlight');
+  });
+
   // 版式参数放在配色重映射之后：用户显式选的标题描边/底色要压过主题与重映射的结果
   if (params) {
-    const accent = isHexColor(overrides.main) ? overrides.main : theme.accent;
     applyHeadingStyles(root, params.headingStyles, accent, params.headingColors);
     applyBlockSpacing(root, params.blockSpacing);
     applyLineHeight(root, params.lineHeight);
@@ -165,7 +185,7 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
     const quoteBackground =
       params.blockquoteBackground === 'accent' ? rgbaFromHex(accent, 0.08) : params.blockquoteBackground;
     applyBlockquoteBackground(root, quoteBackground);
-    applyPagePadding(root, params.pagePaddingX);
+    applyPageMargin(root, params.pageMarginX);
   }
 
   // 整体字号放在最后：配色重映射会重写 style，先缩放会被覆盖
