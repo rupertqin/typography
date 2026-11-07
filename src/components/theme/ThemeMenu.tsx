@@ -41,10 +41,10 @@ export default function ThemeMenu({
       key={id}
       type="button"
       onClick={() => onTypeChange(id)}
-      className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition-all ${
+      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
         articleType === id
-          ? 'bg-zinc-100 text-zinc-900 ring-zinc-300 shadow-sm'
-          : 'bg-white text-zinc-500 ring-zinc-200 hover:text-zinc-800 hover:ring-zinc-300'
+          ? 'ui-selected ui-selected-ring'
+          : 'bg-white text-zinc-500 ring-1 ring-zinc-200 hover:text-zinc-800 hover:ring-zinc-300'
       }`}
     >
       {name}
@@ -86,10 +86,10 @@ export default function ThemeMenu({
             data-active={theme.id === activeTheme.id || undefined}
             aria-label={`使用主题「${theme.name}」`}
             onClick={() => onSelect(theme)}
-            className={`relative rounded-lg p-1.5 text-left ring-1 transition-all ${
+            className={`relative rounded-lg p-1.5 text-left transition-all ${
               theme.id === activeTheme.id
-                ? 'bg-zinc-100 shadow-sm ring-zinc-400'
-                : 'ring-zinc-200 hover:shadow-sm hover:ring-zinc-300'
+                ? 'ui-selected ui-selected-ring'
+                : 'ring-1 ring-zinc-200 hover:shadow-sm hover:ring-zinc-300'
             }`}
           >
             <ThemeCard theme={theme} isNew={NEW_THEME_IDS.has(theme.id)} />

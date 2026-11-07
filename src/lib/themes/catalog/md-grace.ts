@@ -1,5 +1,5 @@
 import { Theme } from '../theme';
-import { MD_ACCENT, MD_GRACE_STYLES, MD_HLJS } from '../md-styles';
+import { MD_ACCENT, MD_CODE_THEME, MD_GRACE_STYLES } from '../md-styles';
 
 /** 优雅 · md-grace · #0f4c81 */
 export default new Theme({
@@ -9,5 +9,5 @@ export default new Theme({
   tags: ['culture', 'emotion'],
   code: 'dark',
   styles: MD_GRACE_STYLES,
-  hljs: MD_HLJS,
+  codeTheme: MD_CODE_THEME,
 });

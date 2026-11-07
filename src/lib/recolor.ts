@@ -53,31 +53,92 @@ function hexToRgb(hex: string): RGB {
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 
-/**
- * 背景色的前景文字：浅底用深字、深底用白字。
- * 色板对勾、彩色按钮的文字色共用这一套亮度判断。
- *
- * 支持 hex 与 rgb()/rgba()：半透明底色（主题的引用浅底就是 rgba）按白底叠色算，
- * 否则 rgba(217,70,111,0.06) 会被当成深色、配出一行看不见的白字。
- */
-export function readableInk(color: string): string {
+/** 浅底用的深墨、深底用的白字，全站只这两个取值 */
+export const INK_ON_LIGHT = '#18181b';
+export const INK_ON_DARK = '#ffffff';
+
+/** 解析 hex / rgb() / rgba()，返回 [r, g, b, alpha]；解析不了给 null */
+function parseColor(color: string): [number, number, number, number] | null {
   const text = color.trim();
   const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(text);
-  let channels: [number, number, number, number] | null = null;
   if (hex) {
-    const [r, g, b] = hexToRgb(`#${hex[1].slice(0, 6)}`);
-    channels = [r, g, b, hex[1].length === 8 ? parseInt(hex[1].slice(6), 16) / 255 : 1];
-  } else {
-    const parts = /^rgba?\(([^)]+)\)$/i.exec(text)?.[1].split(',').map((part) => Number(part.trim()));
-    if (parts && parts.length >= 3 && parts.slice(0, 3).every((value) => !Number.isNaN(value))) {
-      channels = [parts[0], parts[1], parts[2], parts[3] ?? 1];
-    }
+    const body = hex[1];
+    const [r, g, b] = hexToRgb(`#${body.slice(0, 6)}`);
+    return [r, g, b, body.length === 8 ? parseInt(body.slice(6), 16) / 255 : 1];
   }
-  if (!channels) return '#ffffff';
-  const [r, g, b, alpha] = channels;
-  const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  const onWhite = luma * alpha + (1 - alpha);
-  return onWhite > 0.62 ? '#18181b' : '#ffffff';
+  const parts = /^rgba?\(([^)]+)\)$/i.exec(text)?.[1].split(',').map((part) => Number(part.trim()));
+  if (parts && parts.length >= 3 && parts.slice(0, 3).every((value) => !Number.isNaN(value))) {
+    return [parts[0], parts[1], parts[2], parts[3] ?? 1];
+  }
+  return null;
+}
+
+/** sRGB 通道 → 线性光（WCAG 2.1 的相对亮度定义） */
+function toLinearChannel(value: number): number {
+  const channel = Math.min(255, Math.max(0, value)) / 255;
+  return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+/** 相对亮度：0 = 纯黑，1 = 纯白 */
+function relativeLuminance([r, g, b]: RGB): number {
+  return 0.2126 * toLinearChannel(r) + 0.7152 * toLinearChannel(g) + 0.0722 * toLinearChannel(b);
+}
+
+/** 两种墨色自己的亮度（深墨不是纯黑，阈值按实际色算才准） */
+const INK_LUMINANCE_ON_LIGHT = relativeLuminance(hexToRgb(INK_ON_LIGHT));
+const INK_LUMINANCE_ON_DARK = 1;
+
+/** WCAG 2.1 对比度：(亮的 + 0.05) / (暗的 + 0.05)，范围 1~21 */
+function contrastRatio(a: number, b: number): number {
+  const lighter = Math.max(a, b);
+  const darker = Math.min(a, b);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/**
+ * 深墨要「明显更好」才用：中间调底色上白字更干净，所以给白字一点偏好。
+ * 1 = 纯按 WCAG 对比度取赢家；调大后靠近分界的中性色也开始用白字。
+ * 1.7 时 #fa5151 / #009874 / #b76e79 这类饱和中色是白字，
+ * #a9a9a9 / #fece00 / #55c9ea 这些浅底仍是深色字。
+ */
+const DARK_INK_BIAS = 1.7;
+
+/**
+ * 底色该配什么前景色——全站（彩色按钮、色板对勾、取色器）只有这一个判定。
+ *
+ * 用 WCAG 2.1 的对比度：底色与深墨、与白字各算一次；深墨那边要乘上 DARK_INK_BIAS
+ * 再比，也就是同等条件下更愿意给白字（分界因此整体往上抬一点）。
+ * 半透明底色先按 base（默认白纸）叠色再算，否则 rgba(217,70,111,0.06) 这种
+ * 会被当成深色、配出一行看不见的白字。
+ */
+export function contrastInk(color: string, base = INK_ON_DARK): { ink: string; onLight: boolean } {
+  const parsed = parseColor(color);
+  if (!parsed) return { ink: INK_ON_LIGHT, onLight: true };
+  const [r, g, b, alpha] = parsed;
+  const under = parseColor(base) ?? [255, 255, 255, 1];
+  const composed: RGB =
+    alpha >= 1
+      ? [r, g, b]
+      : [
+          r * alpha + under[0] * (1 - alpha),
+          g * alpha + under[1] * (1 - alpha),
+          b * alpha + under[2] * (1 - alpha),
+        ];
+  const luminance = relativeLuminance(composed);
+  const onLight =
+    contrastRatio(luminance, INK_LUMINANCE_ON_LIGHT) >=
+    contrastRatio(luminance, INK_LUMINANCE_ON_DARK) * DARK_INK_BIAS;
+  return { ink: onLight ? INK_ON_LIGHT : INK_ON_DARK, onLight };
+}
+
+/** 只要前景色（对勾、按钮文字） */
+export function readableInk(color: string, base?: string): string {
+  return contrastInk(color, base).ink;
+}
+
+/** 这笔颜色算不算浅底：浅底要加深描边，否则浅色在白底上会糊掉 */
+export function isLightColor(color: string, base?: string): boolean {
+  return contrastInk(color, base).onLight;
 }
 
 function rgbToHsl([r, g, b]: RGB): HSL {

@@ -9,7 +9,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CODE_THEMES, CodeTheme, HLJS_VERSION } from '../src/lib/code-themes/index';
+import {
+  CODE_THEMES,
+  CODE_THEMES_BY_ID,
+  CodeTheme,
+  HLJS_VERSION,
+  withTokenAliases,
+} from '../src/lib/code-themes/index';
 import { BASE_THEMES, MD_THEMES, THEMES, Theme, THEME_FONTS } from '../src/lib/themes/index';
 import type { ThemeDecor } from '../src/lib/types';
 
@@ -43,6 +49,14 @@ const DECOR_ARGS: Record<string, unknown[]> = {
 const errors: string[] = [];
 const warnings: string[] = [];
 
+/** token 表逐色比较：键序无关、颜色大小写无关 */
+function sameTokens(left: Readonly<Record<string, string>>, right: Readonly<Record<string, string>>): boolean {
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  if (leftKeys.join(',') !== rightKeys.join(',')) return false;
+  return leftKeys.every((key) => (left[key] ?? '').toLowerCase() === (right[key] ?? '').toLowerCase());
+}
+
 /* ------------------------------- 主题套件 ------------------------------- */
 
 if (!Array.isArray(THEMES)) errors.push('THEMES 不是数组');
@@ -73,6 +87,13 @@ for (const theme of THEMES) {
   if (typeof theme.hljs !== 'object' || !theme.hljs || !Object.keys(theme.hljs).length) {
     errors.push(`${theme.id}: 缺少 hljs 调色板`);
   }
+  // 主题不自带调色表：必须指向 82 套里的一套，且 hljs 与那套 token（含别名补齐）逐色一致
+  const followed = CODE_THEMES_BY_ID[theme.codeTheme];
+  if (!followed) {
+    errors.push(`${theme.id}: codeTheme「${theme.codeTheme}」不在代码配色列表里`);
+  } else if (!sameTokens(theme.hljs, withTokenAliases(followed.tokens))) {
+    errors.push(`${theme.id}: hljs 与 ${theme.codeTheme} 的 token 不一致（主题不该维护自己的调色表）`);
+  }
 
   const decor = theme.decor as ThemeDecor;
   for (const [key, args] of Object.entries(DECOR_ARGS)) {
@@ -99,6 +120,19 @@ for (const theme of THEMES) {
     } else if (typeof mark !== 'string') {
       errors.push(`${theme.id}.decor.${key} 类型异常`);
     }
+  }
+}
+
+/* 默认映射不许漂移：暗色 → atom-one-dark（与旧手写表色差 ≈9.4），亮色 → github（≈64.9），md 三套 → github-dark-dimmed */
+const DEFAULT_CODE_THEME: Record<'light' | 'dark', string> = { dark: 'atom-one-dark', light: 'github' };
+for (const theme of THEMES) {
+  const code = theme.toSpec().code ?? 'dark';
+  if (theme.id.startsWith('md-')) {
+    if (theme.codeTheme !== 'github-dark-dimmed') {
+      errors.push(`${theme.id}: md 主题应挂 github-dark-dimmed，实际 ${theme.codeTheme}`);
+    }
+  } else if (theme.codeTheme !== DEFAULT_CODE_THEME[code]) {
+    errors.push(`${theme.id}: ${code} 主题默认应挂 ${DEFAULT_CODE_THEME[code]}，实际 ${theme.codeTheme}`);
   }
 }
 

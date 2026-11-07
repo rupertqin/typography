@@ -43,7 +43,7 @@ const GROUP = 'flex h-8 shrink-0 items-center gap-0.5 rounded-md border border-z
 
 const SEGMENTED_BUTTON =
   'inline-flex h-full shrink-0 items-center justify-center rounded px-1.5 text-xs tabular-nums transition-colors';
-const SEGMENTED_ACTIVE = 'bg-zinc-100 font-medium text-zinc-900 shadow-sm';
+const SEGMENTED_ACTIVE = 'ui-selected ui-selected-ring font-medium text-zinc-900';
 const SEGMENTED_IDLE = 'text-zinc-500 hover:text-zinc-800';
 
 const UNDO_TITLE = '撤销（⌘/Ctrl + Z）';
@@ -76,6 +76,9 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
   const resolvedFontId = fontFamilyId === 'theme' ? themeFontId(theme.styles.wrapper) : fontFamilyId;
   const baseFonts = FONT_FAMILIES.filter((font) => !font.iosOnly);
   const iosFonts = FONT_FAMILIES.filter((font) => font.iosOnly);
+  // 下拉框的可见宽度按当前这一项算：文字与下拉里的完全一致（iOS 字体带「限 iOS」后缀）
+  const currentFont = [...baseFonts, ...iosFonts].find((font) => font.id === resolvedFontId);
+  const currentFontLabel = currentFont ? `${currentFont.label}${currentFont.iosOnly ? '（限 iOS）' : ''}` : '';
 
   return (
     <div
@@ -156,25 +159,37 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           title="正文字体：公众号只认读者设备自带的字体，选不到会回退系统默认"
         >
           <span className="hidden text-xs text-zinc-400 sm:inline">字体</span>
-          <select
-            value={resolvedFontId}
-            onChange={(event) => setFontFamilyId(event.target.value)}
-            aria-label="正文字体"
-            className="h-full cursor-pointer bg-transparent pr-0.5 text-xs text-zinc-600 focus:outline-none"
-          >
-            {baseFonts.map((font) => (
-              <option key={font.id} value={font.id}>
-                {font.label}
-              </option>
-            ))}
-            <optgroup label="苹果系统字体（安卓回退默认）">
-              {iosFonts.map((font) => (
+          {/* 宽度跟着当前字体名走：一段不可见文字撑出宽度，下拉框铺在它上面。
+              原生 select 会按最长的选项（「苹方简极细（限 iOS）」）撑宽，选到「黑体」也占那么大。 */}
+          <span className="relative inline-flex h-full min-w-0 items-center">
+            <span aria-hidden className="invisible whitespace-pre pr-4 text-xs">
+              {currentFontLabel}
+            </span>
+            <select
+              value={resolvedFontId}
+              onChange={(event) => setFontFamilyId(event.target.value)}
+              aria-label="正文字体"
+              className="absolute inset-0 h-full w-full cursor-pointer appearance-none truncate bg-transparent pr-4 text-xs text-zinc-600 focus:outline-none"
+            >
+              {baseFonts.map((font) => (
                 <option key={font.id} value={font.id}>
-                  {font.label}（限 iOS）
+                  {font.label}
                 </option>
               ))}
-            </optgroup>
-          </select>
+              <optgroup label="苹果系统字体（安卓回退默认）">
+                {iosFonts.map((font) => (
+                  <option key={font.id} value={font.id}>
+                    {font.label}（限 iOS）
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            <ChevronDown
+              size={12}
+              aria-hidden
+              className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-400"
+            />
+          </span>
         </label>
 
         <div className={GROUP} title="整体字号，复制到公众号后同样生效">
@@ -213,7 +228,11 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           onClick={onToggleStyle}
           aria-pressed={styleOpen}
           title="样式：配色与排版"
-          className="ml-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          className={`ml-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+            styleOpen
+              ? 'ui-selected'
+              : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+          }`}
         >
           <SlidersHorizontal size={14} />
           <span>样式</span>

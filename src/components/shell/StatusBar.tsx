@@ -62,7 +62,7 @@ export default function StatusBar() {
                 title={mode.label}
                 className={`${MODE_BUTTON} ${
                   viewMode === mode.id
-                    ? 'bg-zinc-100 text-zinc-900 shadow-sm'
+                    ? 'ui-selected ui-selected-ring'
                     : 'text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700'
                 }`}
               >
@@ -78,7 +78,7 @@ export default function StatusBar() {
           aria-label={previewDevice === 'mobile' ? '切换为桌面宽度预览' : '切换为手机宽度预览'}
           title={previewDevice === 'mobile' ? '切换为桌面宽度预览' : '切换为手机宽度预览'}
           aria-pressed={previewDevice === 'desktop'}
-          className={`${ICON_BUTTON} hidden sm:flex ${previewDevice === 'desktop' ? 'text-zinc-900' : ''}`}
+          className={`${ICON_BUTTON} hidden sm:flex ${previewDevice === 'desktop' ? 'ui-selected ui-selected-ring' : ''}`}
         >
           {previewDevice === 'mobile' ? <Smartphone size={12} /> : <Monitor size={12} />}
         </button>
@@ -89,7 +89,7 @@ export default function StatusBar() {
           aria-label={scrollSync ? '关闭编辑与预览的滚动同步' : '开启编辑与预览的滚动同步'}
           title={scrollSync ? '关闭滚动同步' : '开启滚动同步'}
           aria-pressed={scrollSync}
-          className={`${ICON_BUTTON} flex ${scrollSync ? 'text-zinc-900' : 'text-zinc-400'}`}
+          className={`${ICON_BUTTON} flex ${scrollSync ? 'ui-selected ui-selected-ring' : 'text-zinc-400'}`}
         >
           {/* 关闭时在箭头上压一道斜杠：图标态也要一眼看出有没有开 */}
           <span className="relative flex items-center justify-center">

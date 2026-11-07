@@ -1,5 +1,5 @@
 import { Theme } from '../theme';
-import { MD_ACCENT, MD_HLJS, MD_SIMPLE_STYLES } from '../md-styles';
+import { MD_ACCENT, MD_CODE_THEME, MD_SIMPLE_STYLES } from '../md-styles';
 
 /** 清爽 · md-simple · #0f4c81 */
 export default new Theme({
@@ -9,5 +9,5 @@ export default new Theme({
   tags: ['tech', 'tutorial'],
   code: 'dark',
   styles: MD_SIMPLE_STYLES,
-  hljs: MD_HLJS,
+  codeTheme: MD_CODE_THEME,
 });

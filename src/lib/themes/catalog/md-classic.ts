@@ -1,5 +1,5 @@
 import { Theme } from '../theme';
-import { MD_ACCENT, MD_CLASSIC_STYLES, MD_HLJS } from '../md-styles';
+import { MD_ACCENT, MD_CLASSIC_STYLES, MD_CODE_THEME } from '../md-styles';
 
 /** 经典 · md-classic · #0f4c81 */
 export default new Theme({
@@ -9,5 +9,5 @@ export default new Theme({
   tags: ['news', 'business'],
   code: 'dark',
   styles: MD_CLASSIC_STYLES,
-  hljs: MD_HLJS,
+  codeTheme: MD_CODE_THEME,
 });

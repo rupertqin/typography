@@ -19,7 +19,7 @@ const SMOKE_MARKDOWN = `${SAMPLE_MARKDOWN}
 需要注明出处时用脚注[^1]，会统一列在文末。
 
 [^1]: 测试用的脚注内容。`;
-const { applyColorOverrides, isHexColor, readableInk } = await import('../src/lib/recolor');
+const { applyColorOverrides, isHexColor, readableInk, isLightColor } = await import('../src/lib/recolor');
 const { FONT_FAMILIES } = await import('../src/lib/constants');
 const { parseMarkdown } = await import('../src/lib/markdown');
 
@@ -76,6 +76,36 @@ if (!darkRecolored.includes('<section')) problems.push('terminal: 单部件调�
 if (!isHexColor('#07c160') || isHexColor('#07c16')) problems.push('isHexColor 判定异常');
 if (readableInk('#0f4c81') !== '#ffffff' || readableInk('#ffb7c5') !== '#18181b') {
   problems.push('彩色按钮/色板的前景文字没有按底色深浅取色');
+}
+// 前景色判定统一走 WCAG 相对亮度：#00ff00 这种高亮绿旧亮度阈值会误判成深色（给白字）
+if (readableInk('#00ff00') !== '#18181b' || readableInk('#0000ff') !== '#ffffff') {
+  problems.push('前景色没有按 WCAG 对比度选深浅');
+}
+if (readableInk('#000000') !== '#ffffff' || readableInk('#ffffff') !== '#18181b') {
+  problems.push('纯黑/纯白的前景色判定异常');
+}
+// 判定整体偏向白字：饱和中色（活力橘 / 翡翠绿 / 玫瑰金）用白字，
+// 浅底（雾烟灰 / 柠檬黄 / 天空蓝）仍是深色字
+if (
+  readableInk('#fa5151') !== '#ffffff' ||
+  readableInk('#009874') !== '#ffffff' ||
+  readableInk('#b76e79') !== '#ffffff'
+) {
+  problems.push('饱和中色没有按偏好给白字');
+}
+if (
+  readableInk('#a9a9a9') !== '#18181b' ||
+  readableInk('#fece00') !== '#18181b' ||
+  readableInk('#55c9ea') !== '#18181b'
+) {
+  problems.push('浅色底被误判成白字');
+}
+// 半透明底色按白纸叠色再判断：6%~8% 的浅底都算浅底
+if (readableInk('rgba(217,70,111,0.06)') !== '#18181b' || !isLightColor('rgba(15,76,129,0.08)')) {
+  problems.push('半透明浅底的前景色判定异常');
+}
+if (isLightColor('#0f4c81') || !isLightColor('#fff4f1')) {
+  problems.push('isLightColor 与前景色判定不一致');
 }
 
 const probe = dom.window.document.createElement('section');

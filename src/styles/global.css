@@ -5,6 +5,12 @@
 @layer base {
   :root {
     color-scheme: light;
+    /* 选中态的投影：三层递增 blur、低透明度叠出来，边缘是渐隐的。
+       方角按钮、圆角卡片、圆形色块共用这一份，观感不会再分叉。 */
+    --ui-selected-shadow:
+      0 1px 2px rgba(24, 24, 27, 0.05),
+      0 2px 5px rgba(24, 24, 27, 0.045),
+      0 4px 10px rgba(24, 24, 27, 0.03);
   }
 
   html,
@@ -218,6 +224,29 @@
 }
 
 @layer utilities {
+  /* 选中态统一口径：全站的分段按钮、胶囊、主题卡、色块都走这几个类，
+     表现是「1px 近黑描边 + 浅灰底 + 会散开的淡投影」。
+     描边固定 1px：有 border 的控件把 border-color 压深即可；
+     投影用三层递增 blur、低透明度叠出来，边缘是渐隐的，不会像硬边框。 */
+  .ui-selected {
+    border-color: #18181b;
+    background-color: #f4f4f5;
+    color: #18181b;
+    box-shadow: var(--ui-edge, 0 0 transparent), var(--ui-selected-shadow);
+  }
+
+  /* 本来没有 border 的控件（分段按钮、主题卡、类型 chip）用 1px inset 环补边，
+     厚度和有 border 的控件一致，不会叠成 2px 黑边。 */
+  .ui-selected-ring {
+    --ui-edge: inset 0 0 0 1px #18181b;
+  }
+
+  /* 圆形色块：颜色外面先留 2px 白，再压 1px 近黑细环，粗细与外框按钮的边框一致；
+     投影与其他选中态同一套。色块本身由子元素画，白环负责把两者隔开。 */
+  .ui-selected-swatch {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px #18181b, var(--ui-selected-shadow);
+  }
+
   /* 细滚动条：对齐 doocs-md（6px、#dadada、透明轨道） */
   .thin-scrollbar {
     scrollbar-width: thin;

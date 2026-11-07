@@ -1,18 +1,26 @@
 import { Check } from 'lucide-react';
-import { readableInk } from '../../lib/recolor';
+import { contrastInk } from '../../lib/recolor';
 
 /**
  * 色块：24px 圆形，内圈留 2px 白色间隙再放颜色（浅色也有一圈极细描边）。
- * 选中态是「白色留白 + 深色细环」的双环，比原来的深色实边框更轻；未选中悬停时轻微放大。
+ * 选中态与外框按钮同一套：1px 近黑细环 + 一圈白色留白 + 同一份淡投影；
+ * 未选中悬停时轻微放大。
+ *
+ * 对勾颜色与描边强度都和彩色按钮同一套判定（`contrastInk`），浅底用深勾、深底用白勾。
  */
 const FRAME = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-full p-[2px] transition-all';
-const CHIP = 'flex h-full w-full items-center justify-center rounded-full ring-1 ring-inset ring-black/10';
-const ACTIVE = 'ring-2 ring-zinc-900 ring-offset-2 ring-offset-white';
+const ACTIVE = 'ui-selected-swatch';
 const IDLE = 'ring-1 ring-transparent hover:scale-110 hover:ring-zinc-300';
 
 /** 色轮：一眼就是「任意颜色」，比加号更像取色入口 */
 const WHEEL =
   'conic-gradient(from 210deg, #f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e)';
+
+function chipClass(light: boolean): string {
+  return `flex h-full w-full items-center justify-center rounded-full ring-1 ring-inset ${
+    light ? 'ring-black/20' : 'ring-black/10'
+  }`;
+}
 
 interface SwatchProps {
   color: string;
@@ -22,6 +30,7 @@ interface SwatchProps {
 }
 
 export function Swatch({ color, name, active, onClick }: SwatchProps) {
+  const { ink, onLight } = contrastInk(color);
   return (
     <button
       type="button"
@@ -31,8 +40,8 @@ export function Swatch({ color, name, active, onClick }: SwatchProps) {
       aria-pressed={active}
       className={`${FRAME} ${active ? ACTIVE : IDLE}`}
     >
-      <span className={CHIP} style={{ background: color }}>
-        {active && <Check size={11} strokeWidth={3.2} style={{ color: readableInk(color) }} />}
+      <span className={chipClass(onLight)} style={{ background: color }}>
+        {active && <Check size={11} strokeWidth={3.2} style={{ color: ink }} />}
       </span>
     </button>
   );
@@ -51,14 +60,15 @@ interface SwatchInputProps {
 /** 自定义取色：与 Swatch 同一套尺寸，未自定义时是一枚小色轮，点了调起系统取色器 */
 export function SwatchInput({ value, fallback, onChange, label, title = '自定义颜色' }: SwatchInputProps) {
   const filled = Boolean(value);
+  const { ink, onLight } = contrastInk(filled ? value : WHEEL);
   return (
     <label
       title={title}
       className={`relative ${FRAME} ${filled ? ACTIVE : IDLE} cursor-pointer`}
     >
-      <span className={CHIP} style={filled ? { background: value } : { background: WHEEL }}>
+      <span className={chipClass(filled ? onLight : true)} style={filled ? { background: value } : { background: WHEEL }}>
         {filled ? (
-          <Check size={11} strokeWidth={3.2} style={{ color: readableInk(value) }} />
+          <Check size={11} strokeWidth={3.2} style={{ color: ink }} />
         ) : (
           <span className="h-[9px] w-[9px] rounded-full bg-white ring-1 ring-inset ring-black/10" />
         )}

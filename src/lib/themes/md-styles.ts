@@ -15,10 +15,12 @@ const MONO = 'Menlo,Monaco,Consolas,"Courier New",monospace';
 const FONT =
   '-apple-system,BlinkMacSystemFont,"Helvetica Neue","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
 
-const codeTheme = CODE_THEMES_BY_ID['github-dark-dimmed'];
+/** md 三套共用的代码配色：82 套里的 github-dark-dimmed（与 doocs 默认一致） */
+export const MD_CODE_THEME = 'github-dark-dimmed';
+
+const codeTheme = CODE_THEMES_BY_ID[MD_CODE_THEME];
 const CODE_BG = codeTheme?.background ?? '#22272e';
 const CODE_FG = codeTheme?.foreground ?? '#adbac7';
-const HLJS = codeTheme?.tokens ?? {};
 
 /** 三套主题共用的底子：正文、链接、代码块、表格、脚注 */
 const BASE: ThemeStyles = {
@@ -93,9 +95,6 @@ const SIMPLE: ThemeStyles = {
 
 /** 三套 md 主题共用的主色 */
 export const MD_ACCENT = ACCENT;
-
-/** doocs 默认的 github-dark-dimmed 代码配色（token → 内联声明） */
-export const MD_HLJS: Record<string, string> = HLJS as unknown as Record<string, string>;
 
 /** 经典（default）：BASE 上补标题、引用、列表与表格 */
 export const MD_CLASSIC_STYLES: ThemeStyles = CLASSIC;

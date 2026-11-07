@@ -245,7 +245,8 @@ try {
   };
 
   const closedClass = styleToggle()?.className ?? '';
-  const openedToggle = await openStylePanel();
+  await openStylePanel();
+  const openedToggle = styleToggle();
   // 「样式」按钮在工具条最右端，不在顶栏
   expect(!openedToggle?.closest('header'), '「样式」按钮还留在顶栏里');
   const workbenchBar = openedToggle?.closest('[data-workbench]') ?? null;
@@ -254,10 +255,9 @@ try {
     workbenchBar?.lastElementChild?.contains(openedToggle ?? null) ?? false,
     '「样式」按钮不在工具条右侧那一组里',
   );
-  expect(
-    (openedToggle?.className ?? '') === closedClass,
-    `「样式」按钮开合时不该变色：${closedClass} → ${openedToggle?.className ?? ''}`,
-  );
+  // 打开时是选中态（与档位按钮同一套 .ui-selected），收起后回到原来的白底细边
+  expect(/ui-selected/.test(openedToggle?.className ?? ''), '「样式」按钮打开时没有选中态');
+  expect(!/ui-selected/.test(closedClass), '「样式」按钮收起时不该是选中态');
   const arrowClass = () => openedToggle?.querySelector('svg[aria-hidden]')?.getAttribute('class') ?? '';
   expect(arrowClass().includes('rotate-180'), `展开时箭头没有朝上：${arrowClass()}`);
   expect(text().includes('段间距'), '样式区缺少段间距分组');
@@ -269,15 +269,35 @@ try {
   expect(text().includes('重置样式'), '样式区缺少重置入口');
   expect(!text().includes('重置配色') && !text().includes('重置排版'), '重置入口没有合并成一个');
 
+  // 行距的值也必须绑在控件上：跟随主题时选中主题自身的行距（多数主题 1.8，gold/news 1.85）
+  const lhChips = () =>
+    Array.from(mount.querySelectorAll('button')).filter((btn) =>
+      (btn.getAttribute('aria-label') ?? '').startsWith('行距'),
+    );
+  const selectedLh = () =>
+    lhChips()
+      .filter((btn) => btn.className.includes('ui-selected'))
+      .map((btn) => btn.getAttribute('aria-label'));
+  expect(selectedLh().length === 1, `行距一开始没有选中档位：${selectedLh().join(',') || '无'}`);
+  {
+    const { THEMES } = await import('../src/lib/themes');
+    const { themeLineHeight } = await import('../src/lib/render-helpers');
+    const active = THEMES.find((item) => item.id === useTypographyStore.getState().themeId);
+    const expected = active ? `行距${themeLineHeight(active.styles.wrapper)}` : '';
+    expect(selectedLh().join() === expected, `行距选中档位与主题行距不符：${selectedLh().join()} ≠ ${expected}`);
+  }
+
   expect(Boolean(clickAria('行距1.9')), '样式区缺少行距 1.9 档');
   await wait(160);
   expect(useTypographyStore.getState().lineHeight === 1.9, '行距未写入 store');
-  // 档位按钮的选中态是浅灰底 + 1px 边（参考 doocs-md），不是深色实底
+  expect(selectedLh().join() === '行距1.9', `点了 1.9 之后 1.9 不是选中态：${selectedLh().join(',')}`);
+  // 档位按钮的选中态走全站统一的 .ui-selected：浅灰底 + 近黑描边 + 一点投影，不是深色实底
   const activeStep = mount.querySelector('button[aria-label="行距1.9"]');
-  expect(Boolean(activeStep?.className.includes('bg-zinc-100')), '选中的档位不是浅灰底');
+  expect(Boolean(activeStep?.className.includes('ui-selected')), '选中的档位没有统一的选中态样式');
   expect(!activeStep?.className.includes('bg-zinc-900'), '选中的档位还在用深色实底');
   expect(!/ring-2/.test(activeStep?.className ?? ''), '选中的档位边框太粗');
-  expect(Boolean(activeStep?.className.includes('shadow-sm')), '选中的档位没有投影（doocs-md 的选中态带 shadow-xs）');
+  const idleStep = mount.querySelector('button[aria-label="行距1.5"]');
+  expect(!idleStep?.className.includes('ui-selected'), '未选中的档位也带上了选中态');
   const lineHeightStyle =
     Array.from(articleRoot()?.querySelectorAll('p') ?? []).find((node) => node.textContent?.trim())?.getAttribute('style') ??
     '';
@@ -286,6 +306,24 @@ try {
   expect(Boolean(clickAria('段间距1.15×')), '样式区缺少段间距档位');
   await wait(160);
   expect(useTypographyStore.getState().blockSpacing === 1.15, '段间距未写入 store');
+
+  // 左右边距的值必须绑在控件上：一打开就有一档选中（跟随主题时用主题自带的值），选了 0 就高亮 0
+  const paddingChips = () =>
+    Array.from(mount.querySelectorAll('button')).filter((btn) =>
+      (btn.getAttribute('aria-label') ?? '').startsWith('左右边距'),
+    );
+  const selectedPadding = () =>
+    paddingChips()
+      .filter((btn) => btn.className.includes('ui-selected'))
+      .map((btn) => btn.getAttribute('aria-label'));
+  expect(
+    selectedPadding().length === 1,
+    `左右边距一开始没有选中档位：${selectedPadding().join(',') || '无'}`,
+  );
+  expect(Boolean(clickAria('左右边距0')), '样式区缺少左右边距档位');
+  await wait(160);
+  expect(useTypographyStore.getState().pagePaddingX === 0, '左右边距 0 未写入 store');
+  expect(selectedPadding().join() === '左右边距0', `选了 0 之后 0 不是选中态：${selectedPadding().join(',')}`);
 
   expect(Boolean(clickAria('左右边距16')), '样式区缺少左右边距档位');
   await wait(180);
@@ -345,6 +383,8 @@ try {
   ) as HTMLElement | undefined;
   expect(originButton?.getAttribute('aria-pressed') === 'true', '未选主色时「模板原色」应选中');
   expect(Boolean(originButton?.style.backgroundColor), '「模板原色」没有用主题色填色');
+  // 填色的按钮与档位按钮同一套选中态（近黑描边 + 浅灰/填色底 + 淡投影）
+  expect(/ui-selected/.test(originButton?.className ?? ''), '填色的「模板原色」没有统一的选中态样式');
   expect(Boolean(followTheme?.style.backgroundColor), '「跟随主题」没有用主色填色');
   useTypographyStore.getState().setMainColor('#ffb7c5');
   await wait(140);
@@ -370,6 +410,14 @@ try {
   headingPreset?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
   await wait(160);
   expect(useTypographyStore.getState().headingColors.h2 === '#fa5151', '标题文字色未写入 store');
+  // 圆形色块的选中态：白色留白 + 1px 近黑细环 + 同一份投影
+  const selectedSwatch = Array.from(colorRow?.querySelectorAll('button') ?? []).find(
+    (btn) => btn.getAttribute('title') === '活力橘',
+  );
+  expect(
+    /ui-selected-swatch/.test(selectedSwatch?.className ?? ''),
+    '选中的色块没有统一的选中态样式',
+  );
   const coloredHeading = (articleRoot()?.querySelector('h2') as HTMLElement | null)?.getAttribute('style') ?? '';
   expect(coloredHeading.includes('color:#fa5151'), `标题文字色未作用到预览：${coloredHeading}`);
   const followAgain = mount.querySelector('button[aria-label="标题文字色跟随主题"]');
@@ -383,9 +431,49 @@ try {
     ?.closest('div.flex.items-start');
   const partText = partRow?.textContent ?? '';
   expect(!/大标题|小标题|三级标题/.test(partText), `单独调色仍列着标题项：${partText}`);
+  // 布局按栏归位：左栏是颜色（主色/链接色/引用底色/单独调色），右栏是版式与标题
+  const rowOf = (label: string) =>
+    Array.from(mount.querySelectorAll('span'))
+      .find((node) => node.textContent?.trim() === label)
+      ?.closest('div.flex.items-start') ?? null;
+  const leftCol = partRow?.parentElement ?? null;
+  const rightCol = headingStyleSelect()?.closest('div.flex.items-start')?.parentElement ?? null;
+  expect(Boolean(leftCol) && Boolean(rightCol), '样式区没有分出左右两栏');
+  expect(leftCol !== rightCol, '左右两栏是同一个容器');
+  expect(leftCol?.parentElement === rightCol?.parentElement, '左右两栏不在同一行');
+  for (const label of ['主色', '链接色', '引用底色', '单独调色']) {
+    expect(rowOf(label)?.parentElement === leftCol, `${label}应在左栏`);
+  }
+  for (const label of ['段间距', '行距', '左右边距', '标题样式', '代码配色']) {
+    expect(rowOf(label)?.parentElement === rightCol, `${label}应在右栏`);
+  }
+  expect(!(partRow?.className ?? '').includes('col-span-2'), '单独调色仍然横跨两栏');
 
   const codeThemeSelect = mount.querySelector('select[aria-label="代码配色"]') as HTMLSelectElement | null;
   expect(Boolean(codeThemeSelect), '样式区缺少代码配色选择器');
+  // 「跟随主题」必须标出 82 套里等价的那套配色名，而不是主题自己的名字
+  const followLabel = () => {
+    const select = mount.querySelector('select[aria-label="代码配色"]') as HTMLSelectElement | null;
+    return select?.options[0]?.textContent ?? '';
+  };
+  {
+    const { THEMES } = await import('../src/lib/themes');
+    const { CODE_THEMES_BY_ID } = await import('../src/lib/code-themes');
+    const activeTheme = THEMES.find((item) => item.id === useTypographyStore.getState().themeId);
+    expect(Boolean(activeTheme), `找不到当前主题 ${useTypographyStore.getState().themeId}`);
+    if (activeTheme) {
+      const expected = `跟随主题（${CODE_THEMES_BY_ID[activeTheme.codeTheme]?.label}）`;
+      expect(followLabel() === expected, `「跟随主题」没标出等价配色：${followLabel()} ≠ ${expected}`);
+      expect(!followLabel().includes(activeTheme.name), `「跟随主题」还在显示主题名：${followLabel()}`);
+    }
+    // 文档主题是 code: 'light'，跟的应该是 github
+    const restoreTheme = useTypographyStore.getState().themeId;
+    useTypographyStore.getState().setThemeId('docs');
+    await wait(160);
+    expect(followLabel().includes('GitHub'), `docs 主题的「跟随主题」应为 GitHub：${followLabel()}`);
+    useTypographyStore.getState().setThemeId(restoreTheme);
+    await wait(160);
+  }
   if (codeThemeSelect) {
     expect(codeThemeSelect.options.length > 60, `代码配色只有 ${codeThemeSelect.options.length} 项`);
     codeThemeSelect.value = 'atom-one-dark';
@@ -616,6 +704,12 @@ try {
     '字体下拉里仍有「主题字体」选项',
   );
   expect(Boolean(fontSelect), '缺少正文字体选择器');
+  // 下拉宽度跟着当前这一项走：靠一段同文案的不可见镜像撑宽，而不是按最长的选项撑着
+  const fontMirror = fontSelect?.parentElement?.querySelector('span[aria-hidden]');
+  expect(
+    (fontMirror?.textContent ?? '').trim() === '黑体',
+    `字体下拉的宽度镜像没有跟随当前选项：${fontMirror?.textContent}`,
+  );
   // 字体只写在唯一的根 section 上（不再有内层字体容器）
   const fontWrapperStyle = () => articleRoot()?.getAttribute('style') ?? '';
   if (fontSelect) {

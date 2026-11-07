@@ -53,7 +53,7 @@ export const PART_COLOR_PRESETS: ColorPreset[] = MAIN_COLOR_PRESETS.filter((pres
 export const ZOOM_LEVELS = [1, 0.75, 0.5];
 
 /** 行距档位：没有「主题」项，未选时仍沿用每套主题自己的节奏 */
-export const LINE_HEIGHT_OPTIONS: Array<{ value: 'theme' | number; label: string; hint: string }> = [
+export const LINE_HEIGHT_OPTIONS: Array<{ value: number; label: string; hint: string }> = [
   { value: 1.5, label: '1.5', hint: '紧凑' },
   { value: 1.65, label: '1.65', hint: '稍紧' },
   { value: 1.75, label: '1.75', hint: '推荐' },

@@ -28,6 +28,26 @@ export const CODE_THEME_GROUPS = {
   dark: CODE_THEMES.filter((theme) => theme.dark),
 };
 
+/**
+ * catalog 里没有这几个 scope（highlight.js 偶尔仍会吐出这些 class）：
+ * 从同一套里语义最近的 token 借色，保证换配色后这些词法不丢色。
+ * 只在源 token 存在时补，不引入任何新色值。
+ */
+export const TOKEN_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  tag: 'name',
+  property: 'name',
+  class: 'built_in',
+});
+
+/** 给一套调色板补齐别名 scope（主题内置表与 82 套共用这一条路径） */
+export function withTokenAliases(tokens: Readonly<Record<string, string>>): Record<string, string> {
+  const out: Record<string, string> = { ...tokens };
+  for (const [target, source] of Object.entries(TOKEN_ALIASES)) {
+    if (!out[target] && tokens[source]) out[target] = tokens[source];
+  }
+  return out;
+}
+
 export function findCodeTheme(id: string | undefined): CodeTheme | undefined {
   if (!id || id === FOLLOW_THEME_CODE) return undefined;
   return CODE_THEMES_BY_ID[id];
@@ -39,7 +59,7 @@ export function findCodeTheme(id: string | undefined): CodeTheme | undefined {
  */
 export function resolveCodeTheme(id: string | undefined): CodePalette | null {
   const picked = findCodeTheme(id);
-  return picked ? picked.palette() : null;
+  return picked ? { ...picked.palette(), tokens: withTokenAliases(picked.tokens) } : null;
 }
 
 /** 预览色条：选中配色的底色与关键 token 颜色（跟随主题时返回空，由调用方回退到主题） */

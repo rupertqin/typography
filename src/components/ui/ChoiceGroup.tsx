@@ -20,7 +20,7 @@ interface ChoiceGroupProps<T> {
 /**
  * 单选胶囊组（radio 语义，用 aria-pressed 表达）。
  *
- * 档位按钮照 doocs-md 的做法：选中是浅灰底 + 一圈细边 + 一点投影（不是深色实底），
+ * 选中态走全站统一的 .ui-selected：浅灰底 + 近黑描边 + 一点投影（不是深色实底），
  * 未选是白底细边，高度统一 28px，鼠标移过去只变底色不变尺寸。
  *
  * 带 color 的选项交给 ColorChoiceButton 画，与「模板原色」「跟随主题」这些
@@ -62,7 +62,7 @@ export default function ChoiceGroup<T extends string | number>({
             title={option.title ?? option.label}
             className={`inline-flex h-7 items-center justify-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
               active
-                ? 'border-zinc-300 bg-zinc-100 font-medium text-zinc-900 shadow-sm'
+                ? 'ui-selected font-medium'
                 : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900'
             }`}
           >

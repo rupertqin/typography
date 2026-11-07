@@ -397,6 +397,41 @@ export function applyBlockquoteBackground(root: Element, background: string): vo
 }
 
 /**
+ * 主题 wrapper 自带的左右内边距（px）。
+ *
+ * 有的主题写 `padding:20px 16px`、有的只写 `padding-left`、有的根本不写（即 0）。
+ * 样式面板的「左右边距」在跟随主题时要显示这个值，不能空着不选中。
+ */
+export function themePaddingX(wrapperStyle: string | undefined): number {
+  const toPx = (value: string | undefined) => {
+    const parsed = value ? Number.parseFloat(value) : Number.NaN;
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : undefined;
+  };
+  const style = wrapperStyle ?? null;
+  const shorthand = getDecl(style, 'padding');
+  // 简写里水平那一档：1 值四边相同；2/3/4 值的第 2 个都是「右」（4 值是「上 右 下 左」）
+  const shorthandSide = shorthand
+    ? (() => {
+        const parts = shorthand.trim().split(/\s+/);
+        return parts.length === 1 ? parts[0] : parts[1];
+      })()
+    : undefined;
+  return toPx(getDecl(style, 'padding-right')) ?? toPx(getDecl(style, 'padding-left')) ?? toPx(shorthandSide) ?? 0;
+}
+
+/**
+ * 主题 wrapper 自带的行高（倍数）。
+ *
+ * 主题大多在 wrapper 写 `line-height:1.8`，也有 1.85 / 1.9 或 md 的 1.75；
+ * 读不到（或写成 normal 这类非数字）时按基础样式表的 1.8 算。
+ * 样式面板的「行距」在跟随主题时要显示这个值，不能空着不选中。
+ */
+export function themeLineHeight(wrapperStyle: string | undefined): number {
+  const parsed = Number.parseFloat(getDecl(wrapperStyle ?? null, 'line-height') ?? '');
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : 1.8;
+}
+
+/**
  * 正文左右边距：只写 padding-left / padding-right，追加在根 section 的 style 尾部。
  *
  * 主题 wrapper 里常见 `padding:20px 16px;` 这类简写，长写放在后面才能压过它的左右值，

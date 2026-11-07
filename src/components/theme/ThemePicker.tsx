@@ -94,9 +94,7 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
           onClick={() => setThemeOpen((open) => !open)}
           aria-expanded={themeOpen}
           className={`inline-flex h-8 w-32 shrink-0 items-center gap-2 rounded-md border px-2.5 text-xs transition-colors sm:w-40 ${
-            themeOpen
-              ? 'border-zinc-300 bg-zinc-100'
-              : 'border-zinc-200 bg-white hover:bg-zinc-50'
+            themeOpen ? 'ui-selected' : 'border-zinc-200 bg-white hover:bg-zinc-50'
           }`}
         >
           <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: theme.accent }} />
