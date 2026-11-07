@@ -20,6 +20,12 @@ const VIEW_MODES: Array<{ id: ViewMode; label: string; icon: typeof PencilLine }
 
 const MODE_BUTTON = 'flex items-center rounded px-1.5 py-0.5 transition-colors';
 const ICON_BUTTON = 'flex items-center rounded p-1 transition-colors hover:bg-zinc-100 hover:text-zinc-900';
+/**
+ * 状态栏里的开关选中态：只给浅灰底 + 加深的图标色，不套 `.ui-selected` 的近黑描边 + 投影。
+ * 和工具条上的字号/缩放一组口径——这排是辅助开关，外框已经给出边界了。
+ */
+const MODE_ACTIVE = 'bg-zinc-100 text-zinc-900';
+const MODE_IDLE = 'text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700';
 
 /** 状态栏（参考 doocs-md 的 footer）：左边文档统计，右边视图与预览设置 */
 export default function StatusBar() {
@@ -60,11 +66,7 @@ export default function StatusBar() {
                 aria-pressed={viewMode === mode.id}
                 aria-label={mode.label}
                 title={mode.label}
-                className={`${MODE_BUTTON} ${
-                  viewMode === mode.id
-                    ? 'ui-selected ui-selected-ring'
-                    : 'text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700'
-                }`}
+                className={`${MODE_BUTTON} ${viewMode === mode.id ? MODE_ACTIVE : MODE_IDLE}`}
               >
                 <Icon size={12} />
               </button>
@@ -78,7 +80,7 @@ export default function StatusBar() {
           aria-label={previewDevice === 'mobile' ? '切换为桌面宽度预览' : '切换为手机宽度预览'}
           title={previewDevice === 'mobile' ? '切换为桌面宽度预览' : '切换为手机宽度预览'}
           aria-pressed={previewDevice === 'desktop'}
-          className={`${ICON_BUTTON} hidden sm:flex ${previewDevice === 'desktop' ? 'ui-selected ui-selected-ring' : ''}`}
+          className={`${ICON_BUTTON} hidden sm:flex ${previewDevice === 'desktop' ? MODE_ACTIVE : ''}`}
         >
           {previewDevice === 'mobile' ? <Smartphone size={12} /> : <Monitor size={12} />}
         </button>
@@ -89,7 +91,7 @@ export default function StatusBar() {
           aria-label={scrollSync ? '关闭编辑与预览的滚动同步' : '开启编辑与预览的滚动同步'}
           title={scrollSync ? '关闭滚动同步' : '开启滚动同步'}
           aria-pressed={scrollSync}
-          className={`${ICON_BUTTON} flex ${scrollSync ? 'ui-selected ui-selected-ring' : 'text-zinc-400'}`}
+          className={`${ICON_BUTTON} flex ${scrollSync ? MODE_ACTIVE : 'text-zinc-400'}`}
         >
           {/* 关闭时在箭头上压一道斜杠：图标态也要一眼看出有没有开 */}
           <span className="relative flex items-center justify-center">

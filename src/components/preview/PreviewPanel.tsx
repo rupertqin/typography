@@ -22,7 +22,7 @@ interface PreviewPanelProps {
 }
 
 /**
- * 右栏：铺满高度的预览区（灰底 + 居中文章纸），没有卡片外壳。
+ * 右栏：铺满高度的预览区（白底，与左半边编辑区同色 + 居中文章纸），没有卡片外壳。
  *
  * 文章纸默认按手机宽度（375px）排版、带左右细边与投影，底部可切桌面宽度；
  * 主题、字体、字号、缩放都在顶部 WorkbenchBar，这里只读 store 里的值用于渲染与图表配色。
@@ -56,10 +56,15 @@ export default function PreviewPanel({
   // 公式同理：占位落盘后编译成内联 SVG（MathJax 首次出现公式时才加载）
   useMathHydration(articleRef, { revision: html });
 
-  const paperWidth = previewDevice === 'mobile' ? 'w-[375px] max-w-full' : 'w-full max-w-[680px]';
+  // 文章纸固定宽度（手机 375 / 桌面 680），居中 + 左右对称阴影，窗外露出的就是预览区底色
+  const paperWidth = previewDevice === 'mobile' ? 'w-[375px]' : 'w-[680px]';
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-zinc-50">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-white">
+      {/*
+        滚动区上下不留白：文章纸 min-h-full 已经铺满可视高度，纵向再垫内距会让它超出、
+        凭空多出一截空滚；左右仍留白，纸的细边和投影才有落处。
+      */}
       <div
         ref={scrollerRef}
         onScroll={(event) => {
@@ -68,10 +73,10 @@ export default function PreviewPanel({
           onScroll?.();
         }}
         data-preview-scroll
-        className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"
+        className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 sm:px-5"
       >
         <div
-          className={`relative mx-auto min-h-full ${paperWidth} border-x border-zinc-200 bg-white px-4 py-5 shadow-xl shadow-zinc-900/5`}
+          className={`relative mx-auto min-h-full max-w-full ${paperWidth} border-x border-zinc-200 bg-white px-4 py-5 shadow-[0_0_28px_rgba(24,24,27,0.10)]`}
           style={{ zoom: activeZoom }}
         >
           {hasContent ? (

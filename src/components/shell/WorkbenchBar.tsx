@@ -44,11 +44,15 @@ const GROUP = 'flex h-8 shrink-0 items-center gap-0.5 rounded-md border border-z
 /** 档位组的外壳：比工具条的 32px 控件矮一档，内衬 1px，选中环才有「框里套框」的层次 */
 const SEGMENT_GROUP = 'flex h-6 shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-px';
 
-/** 档位组的按钮：配 SEGMENT_GROUP 的矮壳，选中态走全站统一的 `.ui-selected`（1px 近黑环 + 浅灰底） */
+/**
+ * 档位组的按钮：配 SEGMENT_GROUP 的矮壳。
+ * 选中态刻意不套 `.ui-selected`（那是近黑描边 + 投影，放在这条工具条上太扎眼），
+ * 只用浅灰底 + 加深的文字；外框已经给出边界，框里再框一层就是双框。
+ */
 const SEGMENT_BUTTON =
   'inline-flex h-full shrink-0 items-center justify-center rounded px-1.5 text-[11px] tabular-nums transition-colors';
-const SEGMENT_ACTIVE = 'ui-selected ui-selected-ring font-medium text-zinc-900';
-const SEGMENT_IDLE = 'text-zinc-500 hover:text-zinc-800';
+const SEGMENT_ACTIVE = 'bg-zinc-100 font-medium text-zinc-900';
+const SEGMENT_IDLE = 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800';
 
 const UNDO_TITLE = '撤销（⌘/Ctrl + Z）';
 const REDO_TITLE = '重做（⌘/Ctrl + Shift + Z）';
