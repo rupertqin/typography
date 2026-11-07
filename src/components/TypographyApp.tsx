@@ -12,8 +12,9 @@ import { copyRichText } from '../lib/clipboard';
 import { buildCopyBundleWhenReady } from '../lib/copy-html';
 import { FONT_FAMILIES } from '../lib/constants';
 import { collectCodeLanguages, ensureLanguage, isLanguageReady } from '../lib/hljs-languages';
-import { isHexColor } from '../lib/recolor';
+import { isHexColor, resolveStrongColor } from '../lib/recolor';
 import { renderMarkdown } from '../lib/render';
+import { previewBodyFontPx } from '../lib/render-helpers';
 import { selectThemeParams, useTypographyStore } from '../lib/store';
 import { THEMES } from '../lib/themes';
 import { themeBodyFont, themeFontId } from '../lib/themes/fonts';
@@ -54,12 +55,18 @@ export default function TypographyApp() {
   // 没手动选字体时（'theme'），直接落到主题自己的归属上——下拉里显示的就是这一项
   const effectiveFontId = fontFamilyId === 'theme' ? themeFontId(theme.styles.wrapper) : fontFamilyId;
   const fontPreset = FONT_FAMILIES.find((item) => item.id === effectiveFontId);
-  // 编辑区与预览用同一套正文字体
+  // 编辑区与预览用同一套正文字体与基准字号（含「整体字号」档位）
   const bodyFont = {
     stack: fontPreset?.stack || themeBodyFont(theme.styles.wrapper),
     weight: fontPreset?.weight,
+    size: previewBodyFontPx(theme.styles.wrapper, fontScale),
   };
   const deferredMarkdown = useDeferredValue(markdown);
+  // 编辑区的加粗色跟预览同源：换主题、换主色、单独调「加粗」都会变
+  const editorStrongColor = useMemo(
+    () => resolveStrongColor(theme, { main: mainColor, parts: partColors }),
+    [theme, mainColor, partColors],
+  );
   // selectThemeParams 每次都会返回新对象，必须用浅比较包一层，否则 zustand v5 会无限重渲染
   const params = useTypographyStore(useShallow(selectThemeParams));
   const codeThemeId = useTypographyStore((state) => state.codeThemeId);
@@ -113,12 +120,12 @@ export default function TypographyApp() {
 
   const label =
     status === 'ok'
-      ? '已复制，去公众号粘贴'
+      ? '已复制'
       : status === 'fail'
         ? '复制失败，请重试'
         : status === 'waiting'
           ? '图表渲染中…'
-          : '复制到公众号';
+          : '复制';
   const Icon = status === 'ok' ? Check : Copy;
 
   return (
@@ -132,7 +139,8 @@ export default function TypographyApp() {
             type="button"
             onClick={handleCopy}
             disabled={!markdown.trim()}
-            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-zinc-900 px-3 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 sm:px-3.5"
+            title="复制到公众号"
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-100 disabled:bg-zinc-50 disabled:text-zinc-400 sm:px-3.5"
           >
             <Icon size={14} />
             {label}
@@ -157,6 +165,7 @@ export default function TypographyApp() {
           <EditorPanel
             editor={editor}
             accent={isHexColor(mainColor) ? mainColor : theme.accent}
+            strongColor={editorStrongColor}
             bodyFont={bodyFont}
             onScroll={scrollSyncHandlers.onEditorScroll}
           />

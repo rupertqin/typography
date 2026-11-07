@@ -1,31 +1,14 @@
 import { Check } from 'lucide-react';
-
-/** '#07c160' / '#0c1' → 相对亮度，用来决定对勾用黑还是白 */
-function inkOn(color: string): string {
-  const hex = color.trim().replace(/^#/, '');
-  if (!/^[0-9a-f]{3,8}$/i.test(hex)) return '#ffffff';
-  const full =
-    hex.length === 3
-      ? hex
-          .split('')
-          .map((char) => char + char)
-          .join('')
-      : hex.slice(0, 6);
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
-  const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luma > 0.62 ? '#18181b' : '#ffffff';
-}
+import { readableInk } from '../../lib/recolor';
 
 /**
- * 色块：外圈是 24px 的 1px 边框框（选中时变深色），内圈留 2px 白色间隙再放颜色，
- * 这样深色、浅色都看得出「选中」，也和按钮统一的 rounded-md + 细边框语言一致。
+ * 色块：24px 圆形，内圈留 2px 白色间隙再放颜色（浅色也有一圈极细描边）。
+ * 选中态是「白色留白 + 深色细环」的双环，比原来的深色实边框更轻；未选中悬停时轻微放大。
  */
-const FRAME = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border p-[2px] transition-colors';
-const CHIP = 'flex h-full w-full items-center justify-center rounded-[4px] ring-1 ring-inset ring-black/10';
-const ACTIVE = 'border-zinc-900';
-const IDLE = 'border-transparent hover:border-zinc-300';
+const FRAME = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-full p-[2px] transition-all';
+const CHIP = 'flex h-full w-full items-center justify-center rounded-full ring-1 ring-inset ring-black/10';
+const ACTIVE = 'ring-2 ring-zinc-900 ring-offset-2 ring-offset-white';
+const IDLE = 'ring-1 ring-transparent hover:scale-110 hover:ring-zinc-300';
 
 /** 色轮：一眼就是「任意颜色」，比加号更像取色入口 */
 const WHEEL =
@@ -49,7 +32,7 @@ export function Swatch({ color, name, active, onClick }: SwatchProps) {
       className={`${FRAME} ${active ? ACTIVE : IDLE}`}
     >
       <span className={CHIP} style={{ background: color }}>
-        {active && <Check size={11} strokeWidth={3.2} style={{ color: inkOn(color) }} />}
+        {active && <Check size={11} strokeWidth={3.2} style={{ color: readableInk(color) }} />}
       </span>
     </button>
   );
@@ -75,7 +58,7 @@ export function SwatchInput({ value, fallback, onChange, label, title = '自定�
     >
       <span className={CHIP} style={filled ? { background: value } : { background: WHEEL }}>
         {filled ? (
-          <Check size={11} strokeWidth={3.2} style={{ color: inkOn(value) }} />
+          <Check size={11} strokeWidth={3.2} style={{ color: readableInk(value) }} />
         ) : (
           <span className="h-[9px] w-[9px] rounded-full bg-white ring-1 ring-inset ring-black/10" />
         )}

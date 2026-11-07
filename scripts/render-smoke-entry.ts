@@ -19,7 +19,7 @@ const SMOKE_MARKDOWN = `${SAMPLE_MARKDOWN}
 需要注明出处时用脚注[^1]，会统一列在文末。
 
 [^1]: 测试用的脚注内容。`;
-const { applyColorOverrides, isHexColor } = await import('../src/lib/recolor');
+const { applyColorOverrides, isHexColor, readableInk } = await import('../src/lib/recolor');
 const { FONT_FAMILIES } = await import('../src/lib/constants');
 const { parseMarkdown } = await import('../src/lib/markdown');
 
@@ -59,6 +59,12 @@ for (const theme of THEMES as any[]) {
   if (!recolored.includes('<section')) problems.push(`${theme.id}: 配色后根节点异常`);
 }
 
+// 浅色主色必须按用户选的色值直出：樱花粉曾被 HSL 重映射压成大红 #ff5072
+const orange = (THEMES as any[]).find((theme) => theme.id === 'orange');
+const pinkHtml = renderMarkdown(SMOKE_MARKDOWN, orange, { colors: { main: '#ffb7c5', parts: {} } });
+if (!pinkHtml.includes('color:#ffb7c5')) problems.push('樱花粉主色没有按原色值渲染');
+if (pinkHtml.includes('#ff5072')) problems.push('樱花粉主色被重映射成大红 #ff5072');
+
 // 单部件调色 + 深色主题（终端）走一遍
 const terminal = (THEMES as any[]).find((theme) => theme.id === 'terminal');
 const darkRecolored = renderMarkdown(SAMPLE_MARKDOWN, terminal, {
@@ -68,6 +74,9 @@ if (!darkRecolored.includes('<section')) problems.push('terminal: 单部件调�
 
 // 颜色工具
 if (!isHexColor('#07c160') || isHexColor('#07c16')) problems.push('isHexColor 判定异常');
+if (readableInk('#0f4c81') !== '#ffffff' || readableInk('#ffb7c5') !== '#18181b') {
+  problems.push('彩色按钮/色板的前景文字没有按底色深浅取色');
+}
 
 const probe = dom.window.document.createElement('section');
 probe.setAttribute('style', 'color:#2b2b2b;background:#ffffff;');
@@ -109,6 +118,15 @@ if (tinySizes.some((size) => size < 8)) problems.push(`最小档：出现小于 
 // 正文字体：字体只写在唯一的根 section 上，不再套第二层容器，内层元素不写 font-family
 const parseHtml = (html: string) =>
   new dom.window.DOMParser().parseFromString(html, 'text/html');
+
+// 首元素不留上边距（对齐 doocs-md 的 `#output section > :first-child`）：
+// 每套主题的首元素类型/简写都不一样，逐套验证内联声明确实落上了
+for (const theme of THEMES as any[]) {
+  const first = parseHtml(renderMarkdown(SMOKE_MARKDOWN, theme)).body.firstElementChild?.firstElementChild;
+  if (!/margin-top:0/.test(first?.getAttribute('style') ?? '')) {
+    problems.push(`${theme.id}: 首元素 ${first?.tagName} 仍留着上边距`);
+  }
+}
 // 选字体前后 section 数量必须一致：多出来的那层就是以前的内层字体容器
 const baseSectionCount = parseHtml(renderMarkdown(SAMPLE_MARKDOWN, THEMES[0] as any)).querySelectorAll(
   'section',
@@ -286,6 +304,10 @@ if (baseMargin && spacingMargin) {
 } else {
   problems.push('段间距参数找不到可对比的 margin');
 }
+const spacingFirst = spacingDoc.body.firstElementChild?.firstElementChild;
+if (!/margin-top:0/.test(spacingFirst?.getAttribute('style') ?? '')) {
+  problems.push('段间距把首元素上边距又加回来了');
+}
 
 // 4) 标题样式预设：三种都要真的写到内联样式里
 const bottomDoc = parseHtml(
@@ -304,7 +326,55 @@ if (!/border-left:4px solid #/.test(leftStyle) || !/display:block/.test(leftStyl
 const colorDoc = parseHtml(
   renderMarkdown(PARAM_MD, paramTheme, { params: { ...DEFAULT_THEME_PARAMS, headingStyles: { h2: 'color-only' } } }),
 );
-if (!/color:#/.test(colorDoc.querySelector('h2')?.getAttribute('style') ?? '')) problems.push('标题主题色文字没生效');
+if (!/color:#/.test(colorDoc.querySelector('h2')?.getAttribute('style') ?? '')) problems.push('标题自选颜色没生效');
+
+// 4b) 标题样式覆盖 H1–H6；自选颜色必须清掉同色背景与装饰层色块
+const HEADINGS_MD = `# 一级\n\n## 二级\n\n### 三级\n\n#### 四级\n\n##### 五级\n\n###### 六级`;
+const allColorDoc = parseHtml(
+  renderMarkdown(HEADINGS_MD, paramTheme, {
+    params: {
+      ...DEFAULT_THEME_PARAMS,
+      headingStyles: {
+        h1: 'color-only', h2: 'color-only', h3: 'color-only',
+        h4: 'color-only', h5: 'color-only', h6: 'color-only',
+      } as const,
+    },
+  }),
+);
+for (const level of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']) {
+  const style = allColorDoc.querySelector(level)?.getAttribute('style') ?? '';
+  if (!/color:#/.test(style)) problems.push(`${level}: 自选颜色没生效`);
+  if (!/background:transparent/.test(style)) problems.push(`${level}: 自选颜色没去掉背景`);
+  for (const span of Array.from(allColorDoc.querySelectorAll(`${level} [style]`))) {
+    const spanStyle = span.getAttribute('style') ?? '';
+    if (/background:(?!transparent)/.test(spanStyle)) problems.push(`${level}: 装饰层仍留着背景色`);
+  }
+}
+// md 三套的 h2 是 background:accent;color:#fff，换自选颜色后不能留同色底
+const mdTheme = (THEMES as any[]).find((theme) => theme.id === 'md-classic');
+const mdH2 = parseHtml(
+  renderMarkdown('## 小标题', mdTheme, { params: { ...DEFAULT_THEME_PARAMS, headingStyles: { h2: 'color-only' } } }),
+).querySelector('h2')?.getAttribute('style') ?? '';
+if (mdH2.includes(`background:${mdTheme.accent}`)) problems.push('自选颜色仍留着与主色同色的背景');
+if (!/color:#0f4c81/.test(mdH2)) problems.push('md 主题的自选颜色没生效');
+
+// 4c) 每级标题文字色：设了用自定义色，没设的仍沿用主色
+const customColorDoc = parseHtml(
+  renderMarkdown(HEADINGS_MD, paramTheme, {
+    params: {
+      ...DEFAULT_THEME_PARAMS,
+      headingStyles: { h2: 'color-only', h3: 'color-only' },
+      headingColors: { h2: '#fa5151' },
+    },
+  }),
+);
+const customH2 = customColorDoc.querySelector('h2')?.getAttribute('style') ?? '';
+const customH3 = customColorDoc.querySelector('h3')?.getAttribute('style') ?? '';
+if (!customH2.includes('color:#fa5151')) problems.push('标题文字色自定义值没写进内联样式');
+if (!customH3.includes('color:#ef7060')) problems.push('未设文字色的标题没有沿用主色');
+if (!hasThemeParams({ ...DEFAULT_THEME_PARAMS, headingColors: { h2: '#fa5151' } })) {
+  problems.push('hasThemeParams 没识别标题文字色');
+}
 
 // 5) 引用底色：'accent' 哨兵值按当前主色算，换主色后要跟着变
 const quoteDoc = parseHtml(
@@ -376,6 +446,10 @@ const hlSource = [
   '',
   '- 项 [链接](https://a.b)',
   '',
+  '~~删~~ *斜* `行内`',
+  '',
+  '| a | b |',
+  '',
   '```js',
   'const a = 1;',
   '```',
@@ -392,12 +466,21 @@ if (hlHtml.split('\n').length !== hlSource.split('\n').length + 1) {
 for (const token of ['mh-heading', 'mh-marker', 'mh-strong', 'mh-quote', 'mh-code-inline', 'mh-link', 'mh-fence', 'mh-code-block', 'mh-html', 'mh-hr']) {
   if (!hlHtml.includes(token)) problems.push(`Markdown 高亮缺少 ${token}`);
 }
+// 语法标记要按类型分开，CSS 才能给标题的 #、加粗的 ** 等各自的样式
+for (const kind of ['heading', 'strong', 'em', 'del', 'quote', 'list', 'table', 'code']) {
+  if (!hlHtml.includes(`mh-marker-${kind}`)) problems.push(`Markdown 高亮缺少 ${kind} 类型标记`);
+}
 if (!hlHtml.includes('const a = 1;')) problems.push('Markdown 高亮的代码块内容丢失');
 if (!hlHtml.includes('&lt;div&gt;') || hlHtml.includes('<div>')) problems.push('Markdown 高亮没有转义 HTML');
 
-// 只能上色：字重/斜体/下划线都会改字宽，两层文本就会折行错位
+// HTML 里不能写内联字重/斜体/下划线：两层文本会折行错位；
+// 相应观感统一放到 global.css，用文字描边、下划线这类不改布局的属性模拟。
 if (/font-weight|font-style|text-decoration|<(b|i|u|strong|em)[\s>]/.test(hlHtml)) {
-  problems.push('Markdown 高亮改动了字宽相关的样式');
+  problems.push('Markdown 高亮在 HTML 里改动了字宽相关的样式');
+}
+// 标题标记后的空格必须原样保留，否则高亮层比 textarea 短
+if (!hlHtml.includes('mh-marker-heading">#</span> <span class="mh-heading"')) {
+  problems.push('标题标记后丢了空格（两层文本长度不一致）');
 }
 const inlineCode = highlightMarkdownSource('`a**b**c`');
 if (!inlineCode.includes('mh-code-inline') || inlineCode.includes('mh-strong')) {

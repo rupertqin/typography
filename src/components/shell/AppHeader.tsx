@@ -6,7 +6,7 @@ interface AppHeaderProps {
   title: string;
   /** 说明文字不占版面，压进 title 提示里 */
   description: string;
-  /** 主操作（复制到公众号） */
+  /** 主操作（复制） */
   actions?: ReactNode;
 }
 

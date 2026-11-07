@@ -102,30 +102,34 @@
     color: inherit;
   }
 
-  /* 编辑区的 Markdown 高亮层：只换颜色，不动字重/斜体——
-     字宽一变，这一层和 textarea 的折行就对不上，光标会跑偏。 */
+  /* 编辑区高亮层：只用不改字宽的 CSS 属性（颜色、文字描边、下划线、删除线），
+     两层文本的折行位置才能始终与 textarea 一致，光标不会错位。
+     粗体用 -webkit-text-stroke 模拟，真正的 font-weight 会改字宽。 */
   .md-editor-highlight {
     color: #3f3f46;
   }
 
   .md-editor-highlight .mh-heading {
     color: var(--mh-accent, #047857);
-  }
-
-  .md-editor-highlight .mh-marker {
-    color: #a1a1aa;
+    -webkit-text-stroke: 0.4px currentColor;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
   }
 
   .md-editor-highlight .mh-strong {
-    color: #18181b;
+    color: var(--mh-strong, #18181b);
+    -webkit-text-stroke: 0.4px currentColor;
   }
 
   .md-editor-highlight .mh-em {
     color: #52525b;
+    font-style: oblique 10deg;
   }
 
   .md-editor-highlight .mh-del {
     color: #a1a1aa;
+    text-decoration: line-through;
   }
 
   .md-editor-highlight .mh-quote {
@@ -147,6 +151,8 @@
   .md-editor-highlight .mh-link,
   .md-editor-highlight .mh-url {
     color: #576b95;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .md-editor-highlight .mh-image {
@@ -165,6 +171,49 @@
   .md-editor-highlight .mh-hr,
   .md-editor-highlight .mh-html {
     color: #a1a1aa;
+  }
+
+  /* 语法标记按所属类型上样式：标题的 #、加粗的 **、斜体的 * 等各归各 */
+  .md-editor-highlight .mh-marker {
+    color: #a1a1aa;
+  }
+
+  .md-editor-highlight .mh-marker-heading {
+    color: var(--mh-accent, #047857);
+    -webkit-text-stroke: 0.4px currentColor;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .md-editor-highlight .mh-marker-strong {
+    color: #52525b;
+    -webkit-text-stroke: 0.4px currentColor;
+  }
+
+  .md-editor-highlight .mh-marker-em {
+    font-style: oblique 10deg;
+  }
+
+  .md-editor-highlight .mh-marker-del {
+    text-decoration: line-through;
+  }
+
+  .md-editor-highlight .mh-marker-quote {
+    color: #71717a;
+  }
+
+  .md-editor-highlight .mh-marker-list {
+    color: var(--mh-accent, #047857);
+    -webkit-text-stroke: 0.3px currentColor;
+  }
+
+  .md-editor-highlight .mh-marker-table {
+    color: #a1a1aa;
+  }
+
+  .md-editor-highlight .mh-marker-code {
+    color: #b45309;
   }
 }
 

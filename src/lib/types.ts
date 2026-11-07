@@ -30,7 +30,7 @@ export interface ColorOverrides {
 
 export type HeadingStyleType = 'default' | 'color-only' | 'border-bottom' | 'border-left';
 
-export type HeadingLevels = 'h1' | 'h2' | 'h3';
+export type HeadingLevels = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
 /**
  * 版式参数：全部叠加在 35 套主题之上，默认值一律「不生效」，
@@ -44,6 +44,8 @@ export interface ThemeParams {
   /** '' = 跟随主题；'transparent' 或具体色值 = 覆盖引用块底色 */
   blockquoteBackground: string;
   headingStyles: Partial<Record<HeadingLevels, HeadingStyleType>>;
+  /** 每级标题「自选颜色」的自定义文字色；空 = 跟随主题主色 */
+  headingColors?: Partial<Record<HeadingLevels, string>>;
   /** 'theme' = 沿用主题自带的左右留白；数字为正文左右内边距（px） */
   pagePaddingX: 'theme' | number;
 }
@@ -53,6 +55,7 @@ export const DEFAULT_THEME_PARAMS: ThemeParams = {
   blockSpacing: 1,
   blockquoteBackground: '',
   headingStyles: {},
+  headingColors: {},
   pagePaddingX: 'theme',
 };
 
@@ -62,6 +65,7 @@ export function hasThemeParams(params: ThemeParams | undefined): boolean {
   if (params.blockSpacing !== 1) return true;
   if (params.blockquoteBackground) return true;
   if (params.pagePaddingX !== 'theme') return true;
+  if (Object.values(params.headingColors ?? {}).some(Boolean)) return true;
   return Object.values(params.headingStyles).some((style) => style && style !== 'default');
 }
 

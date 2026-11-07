@@ -1,4 +1,4 @@
-import type { HeadingStyleType, ThemeCardDecor } from './types';
+import type { HeadingLevels, HeadingStyleType, ThemeCardDecor } from './types';
 import type { Theme } from './themes/theme';
 
 /** 标签 → 主题样式键（h5/h6 复用 h4 的样式） */
@@ -233,6 +233,17 @@ const MIN_FONT_PX = 10;
 const formatPx = (value: number) => Math.max(MIN_FONT_PX, Math.round(value));
 
 /**
+ * 预览正文的基准字号：与 scaleFontSizes 用同一套取整/下限。
+ * 编辑器拿它当自己的基础字号，主题字号与「整体字号」档位一变，两边就一起变。
+ */
+export function previewBodyFontPx(wrapperStyle: string | undefined, scale: number): number {
+  const matched = /font-size\s*:\s*([\d.]+)px/i.exec(wrapperStyle ?? '')?.[1];
+  const base = Number(matched);
+  const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  return formatPx((Number.isFinite(base) && base > 0 ? base : 15) * factor);
+}
+
+/**
  * 整体字号：按比例缩放内联样式里的 px 字号。
  * 主题的根 section 与各级标题都用 px，只改根字号不会影响标题，所以逐节点等比缩放。
  */
@@ -338,6 +349,26 @@ export function applyBlockSpacing(root: Element, factor: number): void {
 }
 
 /**
+ * 首个块级元素不留上边距：等价于 doocs-md 的
+ * `#output section > :first-child { margin-top: 0 !important; }`。
+ * 本项目产物是逐元素内联样式（公众号会丢 CSS 选择器），所以在渲染末尾把规则
+ * 落成内联声明；长写追加在主题的 `margin:…` 简写之后才能压过它。
+ */
+export function clearFirstChildTopMargin(root: Element): void {
+  const sections = [root, ...Array.from(root.querySelectorAll('section'))];
+  for (const section of sections) {
+    const first = section.firstElementChild;
+    if (!first) continue;
+    const style = first.getAttribute('style');
+    // 只动主题写过 margin 的元素：用户原样插入的 HTML 不加属性，保持逐字保留
+    if (!style || (!getDecl(style, 'margin') && !getDecl(style, 'margin-top'))) continue;
+    // 先删旧声明再追加，保证 margin-top 是最后一条，压得住主题里的 margin 简写
+    const withoutTop = dropDecl(style, 'margin-top');
+    first.setAttribute('style', setDecl(withoutTop, 'margin-top', '0'));
+  }
+}
+
+/**
  * 行高：改写块级元素上的 line-height。
  * 不能只改主题根节点——有的主题把 line-height 写死在 h2/li 上，继承不到；
  * 所以文本块统一写一遍。跳过 pre/code（代码行距跟着正文变会糊成一团）
@@ -380,24 +411,36 @@ export function applyPagePadding(root: Element, value: 'theme' | number): void {
 
 const LEVEL_BORDER_WIDTH: Record<string, string> = { borderBottom: '2px', borderLeft: '4px' };
 
+/** 标题样式支持的级别：Markdown 的 H1–H6（H5/H6 复用主题的 h4 样式） */
+const HEADING_LEVELS: HeadingLevels[] = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+
 /**
- * 标题样式预设：下边框 / 左边框 / 主题色文字。
+ * 标题样式预设：下边框 / 左边框 / 自选颜色，逐级别独立生效。
  * 描边类预设会把标题从「色块标题」掰回左对齐块级元素——带底色的 h2 加左边框只会糊成一团。
  */
 export function applyHeadingStyles(
   root: Element,
-  styles: Partial<Record<'h1' | 'h2' | 'h3', HeadingStyleType>>,
+  styles: Partial<Record<HeadingLevels, HeadingStyleType>>,
   accent: string,
+  colors?: Partial<Record<HeadingLevels, string>>,
 ): void {
-  (['h1', 'h2', 'h3'] as const).forEach((level) => {
+  HEADING_LEVELS.forEach((level) => {
     const style = styles[level];
     if (!style || style === 'default') return;
+    // 「自选颜色」可以另选文字色；没选就沿用主色
+    const textColor = colors?.[level] || accent;
 
     root.querySelectorAll(level).forEach((heading) => {
       let next = dropDecl(heading.getAttribute('style'), ['border', 'border-top', 'border-bottom', 'border-left', 'border-right']);
 
       if (style === 'color-only') {
-        heading.setAttribute('style', setDecl(next, 'color', accent));
+        // 主题的底色常常就是主色（md 三套 h2 直接 background:accent;color:#fff），
+        // 留着底色会让文字和背景同色；装饰层里的色块 span 也一并清成透明并统一文字色。
+        [heading, ...Array.from(heading.querySelectorAll('[style]'))].forEach((node) => {
+          const base = node === heading ? next : node.getAttribute('style');
+          const cleared = dropDecl(base, ['background', 'background-color', 'background-image', 'box-shadow']);
+          node.setAttribute('style', setDecl(setDecl(cleared, 'background', 'transparent'), 'color', textColor));
+        });
         return;
       }
 

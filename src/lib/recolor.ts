@@ -53,6 +53,33 @@ function hexToRgb(hex: string): RGB {
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 
+/**
+ * 背景色的前景文字：浅底用深字、深底用白字。
+ * 色板对勾、彩色按钮的文字色共用这一套亮度判断。
+ *
+ * 支持 hex 与 rgb()/rgba()：半透明底色（主题的引用浅底就是 rgba）按白底叠色算，
+ * 否则 rgba(217,70,111,0.06) 会被当成深色、配出一行看不见的白字。
+ */
+export function readableInk(color: string): string {
+  const text = color.trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(text);
+  let channels: [number, number, number, number] | null = null;
+  if (hex) {
+    const [r, g, b] = hexToRgb(`#${hex[1].slice(0, 6)}`);
+    channels = [r, g, b, hex[1].length === 8 ? parseInt(hex[1].slice(6), 16) / 255 : 1];
+  } else {
+    const parts = /^rgba?\(([^)]+)\)$/i.exec(text)?.[1].split(',').map((part) => Number(part.trim()));
+    if (parts && parts.length >= 3 && parts.slice(0, 3).every((value) => !Number.isNaN(value))) {
+      channels = [parts[0], parts[1], parts[2], parts[3] ?? 1];
+    }
+  }
+  if (!channels) return '#ffffff';
+  const [r, g, b, alpha] = channels;
+  const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const onWhite = luma * alpha + (1 - alpha);
+  return onWhite > 0.62 ? '#18181b' : '#ffffff';
+}
+
 function rgbToHsl([r, g, b]: RGB): HSL {
   const rn = r / 255;
   const gn = g / 255;
@@ -137,6 +164,11 @@ function remapColor(rgb: RGB, alpha: number, isColorProp: boolean, lightBackgrou
     if (isColorProp) return map.loud ? tintAt(map, target.l) : null;
     return map.to;
   }
+
+  // 主题主色本身（含它的 rgba 浅底）直接换成用户选的色值：
+  // 走下面的 HSL 重映射会被 clampLightness 按原主色的明度钳回去，
+  // 浅色主色（如樱花粉 #ffb7c5）就会被算成大红 #ff5072。
+  if (rgb.every((value, index) => value === map.from[index])) return map.to;
 
   if (target.s >= NEUTRAL_SATURATION && target.l > 0.03 && target.l < 0.98) {
     const sourceColored = source.s >= NEUTRAL_SATURATION;
@@ -241,4 +273,49 @@ export function applyColorOverrides(root: Element, accent: string, overrides: Co
 
     node.setAttribute('style', recolorStyle(style, map, lightBackground));
   }
+}
+
+/** 内联样式里某个声明的值（只取第一个；-webkit-text-fill-color 之类不算） */
+export function styleValue(style: string, prop = 'color'): string {
+  for (const declaration of style.split(';')) {
+    const colon = declaration.indexOf(':');
+    if (colon < 0) continue;
+    if (declaration.slice(0, colon).trim().toLowerCase() !== prop) continue;
+    const value = declaration.slice(colon + 1).trim();
+    if (value) return value;
+  }
+  return '';
+}
+
+/**
+ * 某处「跟随主题」时当前实际的颜色，和预览走同一套重映射。
+ *
+ * 调用方都是白纸上的展示位（编辑区高亮层、设置面板的按钮），所以固定按浅色背景换算：
+ * 换主题取主题自己的颜色，换主色、单独调色时跟着变，按钮底色不会停在模板原色上。
+ *
+ * @param key 主题样式键（strong / link / blockquote …）
+ * @param partId 可单独调色的部件 id，与 COLOR_PARTS 一致
+ * @param prop 取哪个声明：文字取 color，底色取 background
+ */
+export function resolveThemeColor(
+  theme: Theme,
+  key: string,
+  partId: string,
+  overrides?: ColorOverrides,
+  prop = 'color',
+): string {
+  const base = theme.styles[key] ?? '';
+  const partValue = overrides?.parts?.[partId];
+  const explicit = partValue && isHexColor(partValue) ? partValue : '';
+  const main = isHexColor(overrides?.main) ? (overrides?.main as string) : '';
+  const target = explicit || main;
+  const fallback = styleValue(base, prop) || (prop === 'color' ? theme.accent : '');
+  if (!target) return fallback;
+  const mapped = recolorStyle(base, createMapper(theme.accent, target, partId, Boolean(explicit)), true);
+  return styleValue(mapped, prop) || target;
+}
+
+/** 编辑区高亮层的加粗色：`**粗体**` 在预览里是什么色，编辑区就是什么色 */
+export function resolveStrongColor(theme: Theme, overrides?: ColorOverrides): string {
+  return resolveThemeColor(theme, 'strong', 'strong', overrides);
 }

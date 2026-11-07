@@ -86,7 +86,11 @@ try {
   const html = () => mount.innerHTML;
 
   expect(text().includes('公众号排版风格'), '缺少标题「公众号排版风格」');
-  expect(text().includes('复制到公众号'), '缺少复制按钮');
+  const copyAction = Array.from(mount.querySelectorAll('button')).find(
+    (btn) => (btn.textContent ?? '').trim() === '复制',
+  ) as HTMLButtonElement | undefined;
+  expect(Boolean(copyAction), '缺少复制按钮');
+  expect(Boolean(copyAction?.className.includes('bg-white')), '复制按钮不是浅色样式');
   expect(text().includes('草稿自动保存在本机'), '缺少草稿统计行');
   expect(text().includes('橙心'), '默认主题不是橙心');
   expect(html().includes('探索 Markdown 的奇妙世界'), '预览未渲染示例文章');
@@ -268,6 +272,12 @@ try {
   expect(Boolean(clickAria('行距1.9')), '样式区缺少行距 1.9 档');
   await wait(160);
   expect(useTypographyStore.getState().lineHeight === 1.9, '行距未写入 store');
+  // 档位按钮的选中态是浅灰底 + 1px 边（参考 doocs-md），不是深色实底
+  const activeStep = mount.querySelector('button[aria-label="行距1.9"]');
+  expect(Boolean(activeStep?.className.includes('bg-zinc-100')), '选中的档位不是浅灰底');
+  expect(!activeStep?.className.includes('bg-zinc-900'), '选中的档位还在用深色实底');
+  expect(!/ring-2/.test(activeStep?.className ?? ''), '选中的档位边框太粗');
+  expect(Boolean(activeStep?.className.includes('shadow-sm')), '选中的档位没有投影（doocs-md 的选中态带 shadow-xs）');
   const lineHeightStyle =
     Array.from(articleRoot()?.querySelectorAll('p') ?? []).find((node) => node.textContent?.trim())?.getAttribute('style') ??
     '';
@@ -286,11 +296,93 @@ try {
     `左右边距未作用到正文根容器：${paddedStyle}`,
   );
 
-  expect(Boolean(clickAria('二级标题下边框')), '样式区缺少标题样式预设');
+  const headingLevelSelect = mount.querySelector('select[aria-label="标题级别"]') as HTMLSelectElement | null;
+  const headingStyleSelect = () => mount.querySelector('select[aria-label="标题样式"]') as HTMLSelectElement | null;
+  const changeSelect = (el: HTMLSelectElement | null, value: string) => {
+    if (!el) return;
+    el.value = value;
+    el.dispatchEvent(new win.Event('change', { bubbles: true }));
+  };
+  expect(Boolean(headingLevelSelect && headingStyleSelect()), '样式区缺少标题级别/样式下拉');
+  expect(headingLevelSelect?.value === 'h2', `标题级别默认应为 H2，实际 ${headingLevelSelect?.value}`);
+  expect(headingLevelSelect?.options.length === 6, `标题级别应有 H1–H6 共 6 项，实际 ${headingLevelSelect?.options.length}`);
+  changeSelect(headingStyleSelect(), 'border-bottom');
   await wait(180);
   expect(useTypographyStore.getState().headingStyles.h2 === 'border-bottom', '标题样式未写入 store');
   const headingStyle = (articleRoot()?.querySelector('h2') as HTMLElement | null)?.getAttribute('style') ?? '';
   expect(/border-bottom:2px solid/.test(headingStyle), `标题下边框未作用到预览：${headingStyle}`);
+
+  // 切到 H3：样式下拉应显示该级别自己的当前值，再单独设置
+  changeSelect(headingLevelSelect, 'h3');
+  await wait(120);
+  expect(headingStyleSelect()?.value === 'default', '切换标题级别后没有显示该级别的样式');
+  changeSelect(headingStyleSelect(), 'border-left');
+  await wait(120);
+  expect(useTypographyStore.getState().headingStyles.h3 === 'border-left', 'H3 标题样式未写入 store');
+
+  // H6 也能单独设置
+  changeSelect(headingLevelSelect, 'h6');
+  await wait(120);
+  changeSelect(headingStyleSelect(), 'color-only');
+  await wait(120);
+  expect(useTypographyStore.getState().headingStyles.h6 === 'color-only', 'H6 标题样式未写入 store');
+
+  // 「自选颜色」才展开颜色选项，按级别独立保存，且选项里要有「跟随主题」
+  changeSelect(headingLevelSelect, 'h2');
+  await wait(120);
+  changeSelect(headingStyleSelect(), 'color-only');
+  await wait(150);
+  const styleLabels = Array.from(headingStyleSelect()?.options ?? []).map((option) => option.textContent?.trim());
+  expect(styleLabels.includes('自选颜色') && !styleLabels.includes('主题色文字'), '标题样式下拉没有改成「自选颜色」');
+  const headingColorInput = mount.querySelector('input[aria-label="H2标题文字颜色"]');
+  expect(Boolean(headingColorInput), '自选颜色没有出现颜色选项');
+  const followTheme = mount.querySelector('button[aria-label="标题文字色跟随主题"]') as HTMLElement | null;
+  expect(Boolean(followTheme), '颜色选项缺少「跟随主题」');
+  expect(followTheme?.getAttribute('aria-pressed') === 'true', '未来自定义色时「跟随主题」应选中');
+  // 选颜色的按钮统一走 ColorChoiceButton：选中整颗填色，未选中是白底 + 色点
+  const originButton = Array.from(mount.querySelectorAll('button')).find(
+    (btn) => (btn.textContent ?? '').trim() === '模板原色',
+  ) as HTMLElement | undefined;
+  expect(originButton?.getAttribute('aria-pressed') === 'true', '未选主色时「模板原色」应选中');
+  expect(Boolean(originButton?.style.backgroundColor), '「模板原色」没有用主题色填色');
+  expect(Boolean(followTheme?.style.backgroundColor), '「跟随主题」没有用主色填色');
+  useTypographyStore.getState().setMainColor('#ffb7c5');
+  await wait(140);
+  const followFilled = mount.querySelector('button[aria-label="标题文字色跟随主题"]') as HTMLElement | null;
+  expect(
+    (followFilled?.style.backgroundColor ?? '').replace(/\s/g, '') === 'rgb(255,183,197)',
+    `主色变了「跟随主题」的底色没跟着变：${followFilled?.style.backgroundColor}`,
+  );
+  expect(
+    Array.from(mount.querySelectorAll('button'))
+      .find((btn) => (btn.textContent ?? '').trim() === '模板原色')
+      ?.getAttribute('aria-pressed') === 'false',
+    '选了主色后「模板原色」仍选中',
+  );
+  useTypographyStore.getState().setMainColor('');
+  await wait(140);
+  const colorRow =
+    mount.querySelector('input[aria-label="H2标题文字颜色"]')?.parentElement?.parentElement ?? null;
+  const headingPreset = Array.from(colorRow?.querySelectorAll('button') ?? []).find(
+    (btn) => btn.getAttribute('title') === '活力橘',
+  );
+  expect(Boolean(headingPreset), '标题文字色缺少预设色板');
+  headingPreset?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await wait(160);
+  expect(useTypographyStore.getState().headingColors.h2 === '#fa5151', '标题文字色未写入 store');
+  const coloredHeading = (articleRoot()?.querySelector('h2') as HTMLElement | null)?.getAttribute('style') ?? '';
+  expect(coloredHeading.includes('color:#fa5151'), `标题文字色未作用到预览：${coloredHeading}`);
+  const followAgain = mount.querySelector('button[aria-label="标题文字色跟随主题"]');
+  followAgain?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await wait(150);
+  expect(!useTypographyStore.getState().headingColors.h2, '点「跟随主题」没有清掉自定义色');
+
+  // 单独调色不再列标题项（已并入上面的标题样式）
+  const partRow = Array.from(mount.querySelectorAll('span'))
+    .find((node) => node.textContent?.trim() === '单独调色')
+    ?.closest('div.flex.items-start');
+  const partText = partRow?.textContent ?? '';
+  expect(!/大标题|小标题|三级标题/.test(partText), `单独调色仍列着标题项：${partText}`);
 
   const codeThemeSelect = mount.querySelector('select[aria-label="代码配色"]') as HTMLSelectElement | null;
   expect(Boolean(codeThemeSelect), '样式区缺少代码配色选择器');
@@ -338,11 +430,101 @@ try {
   // 选一个主色预设，预览应立刻换色
   const beforeHtml = html();
   const swatch = Array.from(mount.querySelectorAll('button')).find(
-    (btn) => (btn.getAttribute('title') ?? '') === '微信绿',
+    (btn) => (btn.getAttribute('title') ?? '') === '经典蓝',
   );
   clickButton(swatch);
   await wait(180);
+  expect(useTypographyStore.getState().mainColor === '#0f4c81', '主色预设未写入 store');
   expect(html() !== beforeHtml, '选择主色后预览没有变化');
+
+  // 选颜色的按钮统一走 ColorChoiceButton：选中填色、未选中显示色点，颜色与预览一致
+  {
+    const { styleValue } = await import('../src/lib/recolor');
+    // jsdom 把内联色规整成 rgb()，预览侧还是原样的 hex：比数值不比字面
+    const rgb = (value = '') => {
+      const text = value.trim().toLowerCase();
+      const hex = /^#([0-9a-f]{6})$/.exec(text);
+      if (hex) {
+        const n = parseInt(hex[1], 16);
+        return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},1`;
+      }
+      const parts = /^rgba?\(([^)]+)\)$/.exec(text)?.[1].split(',').map((part) => Number(part.trim()));
+      if (parts && parts.length >= 3) return `${parts[0]},${parts[1]},${parts[2]},${parts[3] ?? 1}`;
+      return text;
+    };
+    // 选中时按钮整颗填该色，未选中时色退到按钮里的圆点
+    const shownColor = (label: string) => {
+      const button = mount.querySelector(`button[aria-label="${label}"]`) as HTMLElement | null;
+      const dot = button?.querySelector('span') as HTMLElement | null;
+      return rgb(button?.style.backgroundColor || dot?.style.backgroundColor);
+    };
+    const pressed = (label: string) =>
+      mount.querySelector(`button[aria-label="${label}"]`)?.getAttribute('aria-pressed') === 'true';
+    const previewLink = () => styleValue(articleRoot()?.querySelector('a')?.getAttribute('style') ?? '');
+    const previewQuote = () =>
+      styleValue(articleRoot()?.querySelector('blockquote')?.getAttribute('style') ?? '', 'background');
+    // 引用底色的「跟随主题」按钮显示主题主色（带主色覆盖），不是主题那层 6% 浅底
+    const accentColor = () =>
+      rgb(useTypographyStore.getState().mainColor || (THEMES.find((t) => t.id === useTypographyStore.getState().themeId) as any).accent);
+
+    useTypographyStore.getState().setThemeId('orange');
+    await wait(180);
+    expect(pressed('链接色跟随主题'), '未选链接色时「跟随主题」应选中');
+    expect(pressed('引用底色跟随主题'), '未引用底色时「跟随主题」应选中');
+    expect(
+      shownColor('链接色跟随主题') === rgb(previewLink()),
+      `链接色「跟随主题」的色点与预览不一致：${shownColor('链接色跟随主题')} / ${rgb(previewLink())}`,
+    );
+    expect(
+      shownColor('引用底色跟随主题') === accentColor(),
+      `引用底色「跟随主题」显示的色不是主色：${shownColor('引用底色跟随主题')} / ${accentColor()}`,
+    );
+
+    // 换主色后这两处跟着变（再次与预览对齐）
+    useTypographyStore.getState().setMainColor('#e11d48');
+    await wait(180);
+    expect(
+      shownColor('链接色跟随主题') === rgb(previewLink()),
+      `换主色后链接色「跟随主题」没跟上预览：${shownColor('链接色跟随主题')} / ${rgb(previewLink())}`,
+    );
+    expect(
+      shownColor('引用底色跟随主题') === accentColor(),
+      `换主色后引用底色「跟随主题」没跟上：${shownColor('引用底色跟随主题')} / ${accentColor()}`,
+    );
+    useTypographyStore.getState().setMainColor('#0f4c81');
+    await wait(160);
+
+    // 选了「微信蓝」之后，「跟随主题」的色点仍是主题链接色，只是不再选中
+    const themeLink = shownColor('链接色跟随主题');
+    useTypographyStore.getState().setPartColor('link', '#576b95');
+    await wait(180);
+    expect(!pressed('链接色跟随主题'), '选了具体链接色后「跟随主题」仍选中');
+    expect(shownColor('链接色跟随主题') === themeLink, '链接色「跟随主题」的色点跟着自定义值变了');
+    expect(shownColor('链接色微信蓝') === rgb('#576b95'), `「微信蓝」的色点不是微信蓝：${shownColor('链接色微信蓝')}`);
+    useTypographyStore.getState().setPartColor('link', '');
+    await wait(160);
+
+    // 引用底色三项都带色点，且色点就是实际底色（半透明原样、无背景画斜线）
+    useTypographyStore.getState().setMainColor('');
+    await wait(160);
+    useTypographyStore.getState().setThemeId('rose');
+    await wait(180);
+    expect(
+      shownColor('引用底色跟随主题') === accentColor(),
+      `跟随主题没有显示主题主色：${shownColor('引用底色跟随主题')} / ${accentColor()}`,
+    );
+    // 主题引用的底色是 rgba(217,70,111,0.06)，按钮上不放这层浅色（否则看着像加了透明度）
+    expect(
+      shownColor('引用底色跟随主题') === rgb('#d9466f'),
+      `跟随主题显示的不是实色：${shownColor('引用底色跟随主题')}`,
+    );
+    expect(
+      shownColor('引用底色主题色浅底') === rgb('rgba(217,70,111,0.08)'),
+      `主题色浅底显示的不是 8% 浅底：${shownColor('引用底色主题色浅底')}`,
+    );
+    const noneDot = mount.querySelector('button[aria-label="引用底色无背景"] span') as HTMLElement | null;
+    expect(Boolean(noneDot?.querySelector('span')), '「无背景」的色点里没有画斜线');
+  }
 
   win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   await wait(100);
@@ -352,8 +534,8 @@ try {
   useTypographyStore.getState().setMarkdown('');
   await wait(160);
   expect(text().includes('左边写点什么'), '清空后未显示预览空态');
-  const copyButton = Array.from(mount.querySelectorAll('button')).find((btn) =>
-    (btn.textContent ?? '').includes('复制到公众号'),
+  const copyButton = Array.from(mount.querySelectorAll('button')).find(
+    (btn) => (btn.textContent ?? '').trim() === '复制',
   ) as HTMLButtonElement | undefined;
   expect(Boolean(copyButton?.disabled), '空正文时复制按钮未禁用');
 
@@ -402,6 +584,12 @@ try {
     (mount.querySelector('section[style*="font-family"]') as HTMLElement | null)?.outerHTML ?? '';
   const baseFontSize = Number(/font-size:([\d.]+)px/.exec(articleHtml())?.[1]);
   expect(Number.isFinite(baseFontSize) && baseFontSize > 0, '预览正文缺少基准字号');
+  // 编辑区基础字号（含高亮层）必须跟预览根字号一致，否则两层折行会错位
+  const editorFontSize = () => (mount.querySelector('textarea') as HTMLElement | null)?.style.fontSize ?? '';
+  const highlightFontSize = () =>
+    (mount.querySelector('pre.md-editor-highlight') as HTMLElement | null)?.style.fontSize ?? '';
+  expect(editorFontSize() === `${baseFontSize}px`, `编辑区基准字号与预览不一致：${editorFontSize()} vs ${baseFontSize}px`);
+  expect(highlightFontSize() === editorFontSize(), `高亮层字号与 textarea 不一致：${highlightFontSize()} vs ${editorFontSize()}`);
   const bigFontButton = Array.from(mount.querySelectorAll('button')).find(
     (btn) => btn.getAttribute('aria-label') === '整体字号更大',
   );
@@ -413,6 +601,10 @@ try {
   expect(
     scaledFontSize === Math.max(10, Math.round(baseFontSize * 1.4)),
     `整体字号未生效：${baseFontSize}px → ${scaledFontSize}px`,
+  );
+  expect(
+    editorFontSize() === `${scaledFontSize}px`,
+    `整体字号未同步到编辑区：${editorFontSize()} vs ${scaledFontSize}px`,
   );
 
   // 字体：只在主题 section 里包一层带字体的 wrapper，内层元素不写 font-family
@@ -571,6 +763,26 @@ try {
     expect(editorLayer.innerHTML.includes('mh-heading'), '高亮层没有解析出标题');
     expect(editorLayer.innerHTML.includes('mh-strong'), '高亮层没有解析出加粗');
     expect(editorLayer.innerHTML.includes('mh-code-block'), '高亮层没有解析代码块');
+    expect(editorLayer.innerHTML.includes('mh-marker-heading'), '标题标记没有单独的类型样式');
+    expect(editorLayer.innerHTML.includes('mh-marker-strong'), '加粗标记没有单独的类型样式');
+
+    // 编辑区加粗色必须跟预览同源：换主色跟着变，否则 **粗体** 会一直停在上一个颜色
+    const highlightRoot = editorLayer.parentElement as HTMLElement;
+    const strongVar = () => highlightRoot.style.getPropertyValue('--mh-strong').trim().toLowerCase();
+    const previewStrong = () =>
+      (/color:\s*(#[0-9a-f]{6})/i.exec(articleRoot()?.querySelector('strong')?.getAttribute('style') ?? '')?.[1] ?? '')
+        .toLowerCase();
+    const themeStrong = strongVar();
+    const baselineMain = useTypographyStore.getState().mainColor;
+    expect(/^#[0-9a-f]{6}$/.test(themeStrong), `编辑区没拿到加粗色：${themeStrong}`);
+    expect(themeStrong === previewStrong(), `编辑区加粗色与预览不一致：${themeStrong} / ${previewStrong()}`);
+    useTypographyStore.getState().setMainColor('#e11d48');
+    await wait(160);
+    expect(strongVar() === '#e11d48', `换主色后编辑区加粗色没跟着变：${strongVar()}`);
+    expect(strongVar() === previewStrong(), `换主色后编辑区加粗色与预览不一致：${strongVar()} / ${previewStrong()}`);
+    useTypographyStore.getState().setMainColor(baselineMain);
+    await wait(160);
+    expect(strongVar() === themeStrong, `恢复主色后编辑区加粗色没回到原色：${strongVar()}`);
 
     expect(textarea.className.includes('text-transparent'), 'textarea 文字没有透明（会和高亮层重影）');
     expect(textarea.className.includes('caret-zinc-800'), 'textarea 没设光标颜色（透明字下光标会消失）');
@@ -723,6 +935,7 @@ try {
       'blockSpacing',
       'blockquoteBackground',
       'headingStyles',
+      'headingColors',
       'pagePaddingX',
       'viewMode',
       'previewDevice',

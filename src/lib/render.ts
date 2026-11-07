@@ -11,6 +11,7 @@ import {
   applyPagePadding,
   applyCard,
   applyCodeChrome,
+  clearFirstChildTopMargin,
   applyFontFamily,
   applyHeadingStyles,
   applyLineHeight,
@@ -157,7 +158,7 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
   // 版式参数放在配色重映射之后：用户显式选的标题描边/底色要压过主题与重映射的结果
   if (params) {
     const accent = isHexColor(overrides.main) ? overrides.main : theme.accent;
-    applyHeadingStyles(root, params.headingStyles, accent);
+    applyHeadingStyles(root, params.headingStyles, accent, params.headingColors);
     applyBlockSpacing(root, params.blockSpacing);
     applyLineHeight(root, params.lineHeight);
     // 'accent' 是「主题色浅底」的哨兵值：换主色/换主题时按当前主色重算，不写死 rgba
@@ -171,6 +172,9 @@ export function renderMarkdown(markdown: string, theme: Theme, options: RenderOp
   scaleFontSizes(root, fontScale);
   applyFontFamily(root, fontFamily, fontWeight);
   stripFontFamilyQuotes(root);
+
+  // 首元素不留上边距：放在所有会改写 margin 的步骤之后，段间距也压不过它
+  clearFirstChildTopMargin(root);
 
   root.querySelectorAll('[data-part], [data-part-self]').forEach((node) => {
     node.removeAttribute('data-part');

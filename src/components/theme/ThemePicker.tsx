@@ -6,8 +6,9 @@ import type { Theme } from '../../lib/themes';
 import { useTypographyStore } from '../../lib/store';
 import ThemeMenu from './ThemeMenu';
 
+/** 与工作台工具条同一口径：32px 高、12px 文字、14px 图标 */
 const ICON_BUTTON =
-  'shrink-0 rounded-md border border-zinc-200 bg-white p-1.5 text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900';
+  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900';
 
 const ALL_THEMES = THEMES;
 
@@ -85,14 +86,14 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
           title="上一个主题"
           aria-label="上一个主题"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={14} />
         </button>
 
         <button
           type="button"
           onClick={() => setThemeOpen((open) => !open)}
           aria-expanded={themeOpen}
-          className={`inline-flex w-32 shrink-0 items-center gap-2 rounded-md border py-1.5 pl-2.5 pr-2 text-sm transition-colors sm:w-40 ${
+          className={`inline-flex h-8 w-32 shrink-0 items-center gap-2 rounded-md border px-2.5 text-xs transition-colors sm:w-40 ${
             themeOpen
               ? 'border-zinc-300 bg-zinc-100'
               : 'border-zinc-200 bg-white hover:bg-zinc-50'
@@ -114,14 +115,14 @@ export default function ThemePicker({ theme, inHeader = false }: ThemePickerProp
           title="下一个主题"
           aria-label="下一个主题"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={14} />
         </button>
 
         <button
           type="button"
           onClick={randomize}
           title={typeName ? `在「${typeName}」推荐的主题里随机换一个` : '随机换一个主题'}
-          className="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          className="ml-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
         >
           <Shuffle size={14} />
           随机

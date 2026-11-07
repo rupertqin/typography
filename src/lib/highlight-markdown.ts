@@ -1,8 +1,9 @@
 /**
  * Markdown 源码高亮（给编辑区那一层用）。
  *
- * 只上色、不改字重/斜体/下划线：编辑区是「透明 textarea + 底下叠一层同样的文本」，
- * 一旦改了字宽，折行位置会和 textarea 算出来的不一致，光标与文字就错位了。
+ * 只输出 class，不写任何会改字宽的内联样式：编辑区是「透明 textarea + 底下叠一层同样的文本」，
+ * 字宽一变折行位置就和 textarea 对不上，光标会跑偏。
+ * 粗体 / 斜体 / 下划线等观感统一放到 global.css，用文字描边、下划线这类不改布局的属性模拟。
  */
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
@@ -24,20 +25,22 @@ const INLINE = new RegExp(
   'g',
 );
 
-/** className + 定界符长度（有定界符的会把符号本身染成灰色，正文上色） */
-const INLINE_RULES: { className: string; delimiter: number }[] = [
+/** className + 定界符长度 + 标记类型（定界符按所属语法单独上样式，正文另上色） */
+const INLINE_RULES: { className: string; delimiter: number; marker?: string }[] = [
   { className: '', delimiter: 0 },
-  { className: 'mh-code-inline', delimiter: 1 },
+  { className: 'mh-code-inline', delimiter: 1, marker: 'code' },
   { className: 'mh-image', delimiter: 0 },
   { className: 'mh-link', delimiter: 0 },
   { className: 'mh-footnote', delimiter: 0 },
-  { className: 'mh-strong', delimiter: 2 },
-  { className: 'mh-del', delimiter: 2 },
-  { className: 'mh-em', delimiter: 1 },
+  { className: 'mh-strong', delimiter: 2, marker: 'strong' },
+  { className: 'mh-del', delimiter: 2, marker: 'del' },
+  { className: 'mh-em', delimiter: 1, marker: 'em' },
   { className: 'mh-url', delimiter: 0 },
 ];
 
 const wrap = (className: string, text: string) => `<span class="${className}">${escapeHtml(text)}</span>`;
+/** 语法标记带上类型，CSS 才能给标题的 #、加粗的 ** 等各自的样式 */
+const marker = (kind: string, text: string) => wrap(`mh-marker mh-marker-${kind}`, text);
 
 function highlightInline(text: string): string {
   let out = '';
@@ -56,9 +59,9 @@ function highlightInline(text: string): string {
     if (rule.delimiter > 0 && raw.length > rule.delimiter * 2) {
       const open = raw.slice(0, rule.delimiter);
       const close = raw.slice(-rule.delimiter);
-      out += wrap('mh-marker', open);
+      out += marker(rule.marker ?? 'plain', open);
       out += wrap(rule.className, raw.slice(rule.delimiter, -rule.delimiter));
-      out += wrap('mh-marker', close);
+      out += marker(rule.marker ?? 'plain', close);
     } else {
       out += wrap(rule.className, raw);
     }
@@ -75,7 +78,7 @@ function highlightInline(text: string): string {
 function highlightTableRow(line: string): string {
   const cells = line.split('|');
   return cells
-    .map((cell, index) => wrap('mh-table', cell) + (index < cells.length - 1 ? wrap('mh-marker', '|') : ''))
+    .map((cell, index) => wrap('mh-table', cell) + (index < cells.length - 1 ? marker('table', '|') : ''))
     .join('');
 }
 
@@ -116,8 +119,9 @@ export function highlightMarkdownSource(source: string): string {
 
     const heading = HEADING.exec(line);
     if (heading) {
+      // 标题标记后的空格必须原样补回，少了它高亮层会比 textarea 短一个字符
       out.push(
-        `<span class="mh-marker">${escapeHtml(heading[1])}</span><span class="mh-heading">${highlightInline(
+        `${marker('heading', heading[1])}${escapeHtml(heading[2])}<span class="mh-heading">${highlightInline(
           heading[3],
         )}</span>`,
       );
@@ -127,9 +131,7 @@ export function highlightMarkdownSource(source: string): string {
     const quote = QUOTE.exec(line);
     if (quote) {
       out.push(
-        `<span class="mh-marker">${escapeHtml(quote[1])}</span><span class="mh-quote">${highlightInline(
-          quote[2],
-        )}</span>`,
+        `${marker('quote', quote[1])}<span class="mh-quote">${highlightInline(quote[2])}</span>`,
       );
       continue;
     }
@@ -147,7 +149,7 @@ export function highlightMarkdownSource(source: string): string {
     const list = LIST.exec(line);
     if (list) {
       out.push(
-        `<span class="mh-marker">${escapeHtml(list[1] + list[2])}</span>${escapeHtml(
+        `${marker('list', list[1] + list[2])}${escapeHtml(
           list[3],
         )}<span class="mh-list-text">${highlightInline(list[4])}</span>`,
       );

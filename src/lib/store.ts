@@ -27,6 +27,8 @@ export interface TypographyState {
   blockSpacing: number;
   blockquoteBackground: string;
   headingStyles: Partial<Record<HeadingLevels, HeadingStyleType>>;
+  /** 每级标题「自选颜色」的自定义文字色；空 = 跟随主题主色 */
+  headingColors: Partial<Record<HeadingLevels, string>>;
   /** 正文左右内边距；'theme' = 沿用主题 */
   pagePaddingX: ThemeParams['pagePaddingX'];
   /** 工作区布局（持久化，刷新后保持上次的分屏比例与视图） */
@@ -49,6 +51,7 @@ export interface TypographyState {
   setBlockSpacing: (blockSpacing: number) => void;
   setBlockquoteBackground: (background: string) => void;
   setHeadingStyle: (level: HeadingLevels, style: HeadingStyleType) => void;
+  setHeadingColor: (level: HeadingLevels, color: string) => void;
   setPagePaddingX: (pagePaddingX: ThemeParams['pagePaddingX']) => void;
   resetParams: () => void;
   setViewMode: (viewMode: ViewMode) => void;
@@ -81,6 +84,7 @@ export const useTypographyStore = create<TypographyState>()(
       blockSpacing: DEFAULT_THEME_PARAMS.blockSpacing,
       blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
       headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
+      headingColors: { ...DEFAULT_THEME_PARAMS.headingColors },
       pagePaddingX: DEFAULT_THEME_PARAMS.pagePaddingX,
       viewMode: 'split',
       previewDevice: 'mobile',
@@ -112,6 +116,13 @@ export const useTypographyStore = create<TypographyState>()(
           else next[level] = style;
           return { headingStyles: next };
         }),
+      setHeadingColor: (level, color) =>
+        set((state) => {
+          const next = { ...state.headingColors };
+          if (color) next[level] = color;
+          else delete next[level];
+          return { headingColors: next };
+        }),
       setPagePaddingX: (pagePaddingX) => set({ pagePaddingX }),
       resetParams: () =>
         set({
@@ -119,6 +130,7 @@ export const useTypographyStore = create<TypographyState>()(
           blockSpacing: DEFAULT_THEME_PARAMS.blockSpacing,
           blockquoteBackground: DEFAULT_THEME_PARAMS.blockquoteBackground,
           headingStyles: { ...DEFAULT_THEME_PARAMS.headingStyles },
+          headingColors: { ...DEFAULT_THEME_PARAMS.headingColors },
           pagePaddingX: DEFAULT_THEME_PARAMS.pagePaddingX,
         }),
       setViewMode: (viewMode) => set({ viewMode }),
@@ -141,6 +153,12 @@ export const useTypographyStore = create<TypographyState>()(
         if (typeof merged.markdown === 'string' && isLegacySample(merged.markdown)) {
           merged.markdown = SAMPLE_MARKDOWN;
         }
+        // 标题调色已并入「标题样式」，旧草稿里 partColors.h1/h2/h3 不再有入口
+        if (merged.partColors) {
+          const next = { ...merged.partColors };
+          for (const level of ['h1', 'h2', 'h3']) delete next[level];
+          merged.partColors = next;
+        }
         return merged;
       },
     },
@@ -154,6 +172,7 @@ export function selectThemeParams(state: TypographyState): ThemeParams {
     blockSpacing: state.blockSpacing ?? DEFAULT_THEME_PARAMS.blockSpacing,
     blockquoteBackground: state.blockquoteBackground ?? DEFAULT_THEME_PARAMS.blockquoteBackground,
     headingStyles: state.headingStyles ?? DEFAULT_THEME_PARAMS.headingStyles,
+    headingColors: state.headingColors ?? DEFAULT_THEME_PARAMS.headingColors,
     pagePaddingX: state.pagePaddingX ?? DEFAULT_THEME_PARAMS.pagePaddingX,
   };
 }

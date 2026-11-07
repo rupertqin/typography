@@ -25,6 +25,7 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
   const blockSpacing = useTypographyStore((state) => state.blockSpacing);
   const blockquoteBackground = useTypographyStore((state) => state.blockquoteBackground);
   const headingCount = useTypographyStore((state) => Object.keys(state.headingStyles).length);
+  const headingColorCount = useTypographyStore((state) => Object.keys(state.headingColors ?? {}).length);
   const pagePaddingX = useTypographyStore((state) => state.pagePaddingX);
   const codeThemeId = useTypographyStore((state) => state.codeThemeId);
   const resetColors = useTypographyStore((state) => state.resetColors);
@@ -45,6 +46,7 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
     blockSpacing !== 1 ||
     Boolean(blockquoteBackground) ||
     headingCount > 0 ||
+    headingColorCount > 0 ||
     pagePaddingX !== 'theme' ||
     codeThemeId !== FOLLOW_THEME_CODE;
   const dirty = colorsDirty || paramsDirty;

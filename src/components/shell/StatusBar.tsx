@@ -62,7 +62,7 @@ export default function StatusBar() {
                 title={mode.label}
                 className={`${MODE_BUTTON} ${
                   viewMode === mode.id
-                    ? 'bg-zinc-100 text-zinc-900'
+                    ? 'bg-zinc-100 text-zinc-900 shadow-sm'
                     : 'text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700'
                 }`}
               >

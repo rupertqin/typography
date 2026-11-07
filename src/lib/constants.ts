@@ -13,11 +13,8 @@ export const ARTICLE_TYPES: ArticleType[] = [
   { id: "event", name: "活动节日" },
 ];
 
-/** 可单独调色的部件 */
+/** 可单独调色的部件（标题文字色改由上面的「标题样式」按级别设置） */
 export const COLOR_PARTS = [
-  { id: "h1", name: "大标题" },
-  { id: "h2", name: "小标题" },
-  { id: "h3", name: "三级标题" },
   { id: "strong", name: "加粗" },
   { id: "blockquote", name: "引用块" },
   { id: "hr", name: "分割线" },
@@ -27,31 +24,30 @@ export const COLOR_PARTS = [
   { id: "page", name: "背景" },
 ];
 
-/** 主色预设 */
+/** 主色预设：取自 doocs/md 的 colorOptions（11 色，默认经典蓝 #0F4C81） */
 export const MAIN_COLOR_PRESETS: ColorPreset[] = [
-  { color: "#07c160", name: "微信绿" },
-  { color: "#1677ff", name: "蓝" },
-  { color: "#1e3a8a", name: "藏青" },
-  { color: "#e53935", name: "红" },
-  { color: "#fa8c16", name: "橙" },
-  { color: "#d4a106", name: "金" },
-  { color: "#13c2c2", name: "青" },
-  { color: "#722ed1", name: "紫" },
-  { color: "#eb2f96", name: "粉" },
-  { color: "#8b5a2b", name: "棕" },
-  { color: "#262626", name: "墨黑" },
+  { color: "#0f4c81", name: "经典蓝" },
+  { color: "#009874", name: "翡翠绿" },
+  { color: "#fa5151", name: "活力橘" },
+  { color: "#fece00", name: "柠檬黄" },
+  { color: "#92617e", name: "薰衣紫" },
+  { color: "#55c9ea", name: "天空蓝" },
+  { color: "#b76e79", name: "玫瑰金" },
+  { color: "#556b2f", name: "橄榄绿" },
+  { color: "#333333", name: "石墨黑" },
+  { color: "#a9a9a9", name: "雾烟灰" },
+  { color: "#ffb7c5", name: "樱花粉" },
 ];
 
-/** 部件调色预设 */
-export const PART_COLOR_PRESETS: ColorPreset[] = [
-  { color: "#e53935", name: "红" },
-  { color: "#fa8c16", name: "橙" },
-  { color: "#1677ff", name: "蓝" },
-  { color: "#07c160", name: "绿" },
-  { color: "#722ed1", name: "紫" },
-  { color: "#262626", name: "黑" },
-  { color: "#d9d9d9", name: "浅灰" },
-];
+/**
+ * 部件调色预设：从主色预设里取常用的 7 色（含中性色），
+ * 色值与名称都跟「主色」共用一份数据，改主色时两处不会对不上。
+ * 数量保持 7 个，避免单独调色每行被撑到换行。
+ */
+const PART_PRESET_NAMES = ['经典蓝', '翡翠绿', '活力橘', '薰衣紫', '石墨黑', '雾烟灰', '樱花粉'];
+export const PART_COLOR_PRESETS: ColorPreset[] = MAIN_COLOR_PRESETS.filter((preset) =>
+  PART_PRESET_NAMES.includes(preset.name),
+);
 
 /** 预览缩放档位 */
 export const ZOOM_LEVELS = [1, 0.75, 0.5];
@@ -74,10 +70,10 @@ export const BLOCK_SPACING_OPTIONS: Array<{ value: number; label: string; hint: 
   { value: 1.35, label: '1.35×', hint: '宽松' },
 ];
 
-/** 标题样式预设（一级/二级/三级各自可选） */
+/** 标题样式预设（H1–H6 各自可选） */
 export const HEADING_STYLE_OPTIONS = [
   { value: 'default', label: '默认' },
-  { value: 'color-only', label: '主题色文字' },
+  { value: 'color-only', label: '自选颜色' },
   { value: 'border-bottom', label: '下边框' },
   { value: 'border-left', label: '左边框' },
 ] as const;

@@ -43,14 +43,14 @@ export default function ThemeMenu({
       onClick={() => onTypeChange(id)}
       className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition-all ${
         articleType === id
-          ? 'bg-zinc-900 text-white ring-zinc-900'
+          ? 'bg-zinc-100 text-zinc-900 ring-zinc-300 shadow-sm'
           : 'bg-white text-zinc-500 ring-zinc-200 hover:text-zinc-800 hover:ring-zinc-300'
       }`}
     >
       {name}
       <span
         className={`ml-1 tabular-nums ${
-          articleType === id ? 'text-zinc-400' : 'text-zinc-300'
+          articleType === id ? 'text-zinc-500' : 'text-zinc-300'
         }`}
       >
         {count}
@@ -88,7 +88,7 @@ export default function ThemeMenu({
             onClick={() => onSelect(theme)}
             className={`relative rounded-lg p-1.5 text-left ring-1 transition-all ${
               theme.id === activeTheme.id
-                ? 'bg-zinc-100 ring-2 ring-zinc-400'
+                ? 'bg-zinc-100 shadow-sm ring-zinc-400'
                 : 'ring-zinc-200 hover:shadow-sm hover:ring-zinc-300'
             }`}
           >

@@ -13,7 +13,7 @@ export default function CodeThemePicker({ theme }: { theme: Theme }) {
       value={codeThemeId}
       onChange={setCodeThemeId}
       ariaLabel="代码配色"
-      className="w-full"
+      className="w-56 max-w-full"
       title="选一套独立的代码块配色，或跟随文章主题"
     >
       <option value={FOLLOW_THEME_CODE}>跟随主题（{theme.name}）</option>

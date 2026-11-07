@@ -30,12 +30,20 @@ const ICONS = {
   hr: Minus,
 } as const;
 
-const TOOL_BUTTON =
-  'rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900';
-const TOOL_BUTTON_DISABLED = `${TOOL_BUTTON} disabled:pointer-events-none disabled:opacity-30`;
+/**
+ * 工具条统一口径：所有可见控件 32px 高、12px 文字、14px 图标（与顶栏按钮 / Select 一致）。
+ * 分组外壳自己占满 h-8（border 计入高度），内部按钮用 h-full 填满，不再靠各自 padding 撑高。
+ */
+const TOOL_BUTTON_BASE =
+  'inline-flex items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900';
+const BARE_ICON_BUTTON = `${TOOL_BUTTON_BASE} h-8 w-8 shrink-0`;
+const DISABLED_ICON_BUTTON = `${BARE_ICON_BUTTON} disabled:pointer-events-none disabled:opacity-30`;
+const GROUP_ICON_BUTTON = `${TOOL_BUTTON_BASE} h-full w-7 shrink-0`;
+const GROUP = 'flex h-8 shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-px';
 
-const SEGMENTED_BUTTON = 'rounded px-1.5 py-0.5 tabular-nums transition-colors';
-const SEGMENTED_ACTIVE = 'bg-zinc-100 font-medium text-zinc-900';
+const SEGMENTED_BUTTON =
+  'inline-flex h-full shrink-0 items-center justify-center rounded px-1.5 text-xs tabular-nums transition-colors';
+const SEGMENTED_ACTIVE = 'bg-zinc-100 font-medium text-zinc-900 shadow-sm';
 const SEGMENTED_IDLE = 'text-zinc-500 hover:text-zinc-800';
 
 const UNDO_TITLE = '撤销（⌘/Ctrl + Z）';
@@ -74,7 +82,7 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
       data-workbench
       className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-zinc-200 bg-white px-3 py-2 lg:px-5"
     >
-      <div className="flex items-center gap-0.5 rounded-md border border-zinc-200 p-0.5">
+      <div className={GROUP}>
         {INSERT_ACTIONS.map((action) => {
           const Icon = ICONS[action.id as keyof typeof ICONS];
           return (
@@ -84,9 +92,9 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
               onClick={() => editor.insert(action)}
               title={action.title}
               aria-label={action.title}
-              className={TOOL_BUTTON}
+              className={GROUP_ICON_BUTTON}
             >
-              <Icon size={15} />
+              <Icon size={14} />
             </button>
           );
         })}
@@ -97,7 +105,7 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           type="button"
           onClick={editor.undo}
           disabled={!editor.canUndo}
-          className={TOOL_BUTTON_DISABLED}
+          className={DISABLED_ICON_BUTTON}
           title={UNDO_TITLE}
           aria-label={UNDO_TITLE}
         >
@@ -107,7 +115,7 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           type="button"
           onClick={editor.redo}
           disabled={!editor.canRedo}
-          className={TOOL_BUTTON_DISABLED}
+          className={DISABLED_ICON_BUTTON}
           title={REDO_TITLE}
           aria-label={REDO_TITLE}
         >
@@ -119,7 +127,7 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
         <button
           type="button"
           onClick={editor.restoreSample}
-          className={TOOL_BUTTON}
+          className={BARE_ICON_BUTTON}
           title="恢复示例"
           aria-label="恢复示例"
         >
@@ -128,7 +136,7 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
         <button
           type="button"
           onClick={editor.clear}
-          className={`${TOOL_BUTTON} hover:!bg-red-50 hover:!text-red-500 ${
+          className={`${BARE_ICON_BUTTON} hover:!bg-red-50 hover:!text-red-500 ${
             editor.hasContent ? '' : 'pointer-events-none opacity-30'
           }`}
           title="清空"
@@ -144,15 +152,15 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
         {!isMobile && <ThemePicker theme={theme} inHeader />}
 
         <label
-          className="flex shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-1.5 py-1"
+          className="flex h-8 shrink-0 items-center gap-1 rounded-md border border-zinc-200 px-1.5"
           title="正文字体：公众号只认读者设备自带的字体，选不到会回退系统默认"
         >
-          <span className="hidden text-[11px] text-zinc-400 sm:inline">字体</span>
+          <span className="hidden text-xs text-zinc-400 sm:inline">字体</span>
           <select
             value={resolvedFontId}
             onChange={(event) => setFontFamilyId(event.target.value)}
             aria-label="正文字体"
-            className="cursor-pointer bg-transparent py-0 pr-0.5 text-[11px] text-zinc-600 focus:outline-none"
+            className="h-full cursor-pointer bg-transparent pr-0.5 text-xs text-zinc-600 focus:outline-none"
           >
             {baseFonts.map((font) => (
               <option key={font.id} value={font.id}>
@@ -169,11 +177,8 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           </select>
         </label>
 
-        <div
-          className="flex shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-0.5"
-          title="整体字号，复制到公众号后同样生效"
-        >
-          <span className="hidden pl-1 pr-0.5 text-[11px] text-zinc-400 sm:inline">字号</span>
+        <div className={GROUP} title="整体字号，复制到公众号后同样生效">
+          <span className="hidden pl-1 pr-0.5 text-xs text-zinc-400 sm:inline">字号</span>
           {FONT_SCALES.map((scale) => (
             <button
               key={scale.value}
@@ -181,24 +186,21 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
               onClick={() => setFontScale(scale.value)}
               aria-pressed={scale.value === fontScale}
               aria-label={`整体字号${scale.label}`}
-              className={`${SEGMENTED_BUTTON} text-[11px] ${scale.value === fontScale ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
+              className={`${SEGMENTED_BUTTON} ${scale.value === fontScale ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
             >
               {scale.label}
             </button>
           ))}
         </div>
 
-        <div
-          className="flex shrink-0 items-center gap-0.5 rounded-md border border-zinc-200 p-0.5"
-          title="缩小预览，一屏看整篇结构（不影响复制结果）"
-        >
+        <div className={GROUP} title="缩小预览，一屏看整篇结构（不影响复制结果）">
           {ZOOM_LEVELS.map((level) => (
             <button
               key={level}
               type="button"
               onClick={() => setZoom(level)}
               aria-pressed={level === activeZoom}
-              className={`${SEGMENTED_BUTTON} text-[11px] ${level === activeZoom ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
+              className={`${SEGMENTED_BUTTON} ${level === activeZoom ? SEGMENTED_ACTIVE : SEGMENTED_IDLE}`}
             >
               {level * 100}%
             </button>
@@ -211,9 +213,9 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           onClick={onToggleStyle}
           aria-pressed={styleOpen}
           title="样式：配色与排版"
-          className="ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          className="ml-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
         >
-          <SlidersHorizontal size={13} />
+          <SlidersHorizontal size={14} />
           <span>样式</span>
           <ChevronDown
             size={12}
