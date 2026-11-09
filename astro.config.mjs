@@ -1,38 +1,39 @@
-import { defineConfig } from 'astro/config';
-import react from '@astrojs/react';
+import { defineConfig } from "astro/config";
+import react from "@astrojs/react";
 
 /**
  * 构建产物与挂载路径无关：build 一律用 base `/`，随后 scripts/relativize.mjs
  * 把 HTML 的根绝对引用改成相对引用，同一份 dist 可挂在任意路径。
  * 只有 dev 需要 BASE_PATH（dev server 按 base 注册路由）。
  */
-const rawBase = (process.env.BASE_PATH ?? '').trim();
-const devBase = !rawBase || rawBase === '/' ? '/' : `/${rawBase.replace(/^\/+|\/+$/g, '')}`;
+const rawBase = (process.env.BASE_PATH ?? "").trim();
+const devBase =
+  !rawBase || rawBase === "/" ? "/" : `/${rawBase.replace(/^\/+|\/+$/g, "")}`;
 // 只有 dev server 需要前缀；build / preview / sync 一律走站点根
-const isDevCommand = process.argv.some((arg) => arg === 'dev' || arg === 'start');
+const isDevCommand = process.argv.some(
+  (arg) => arg === "dev" || arg === "start",
+);
 
 export default defineConfig({
-  base: isDevCommand ? devBase : '/',
+  base: isDevCommand ? devBase : "/",
   integrations: [react()],
-  server: {
-    host: '0.0.0.0',
-  },
   vite: {
     server: {
-      host: '0.0.0.0',
+      // allowedHosts 是 Host 头白名单（隧道域名用），与监听地址无关。
+      // 这里不再重复写 host，统一由上面 server.host 决定。
       allowedHosts: true,
     },
     // mermaid / mathjax 都是动态 import 的大依赖：先预构建，dev 下它们的 dep URL 才稳定。
     // 否则首次访问时 Vite 临时发现并重新优化，旧页面拿着过期的 ?v=hash 会 404。
     optimizeDeps: {
       include: [
-        'mermaid',
-        'mathjax-full/js/mathjax.js',
-        'mathjax-full/js/input/tex.js',
-        'mathjax-full/js/output/svg.js',
-        'mathjax-full/js/adaptors/liteAdaptor.js',
-        'mathjax-full/js/handlers/html.js',
-        'mathjax-full/js/input/tex/AllPackages.js',
+        "mermaid",
+        "mathjax-full/js/mathjax.js",
+        "mathjax-full/js/input/tex.js",
+        "mathjax-full/js/output/svg.js",
+        "mathjax-full/js/adaptors/liteAdaptor.js",
+        "mathjax-full/js/handlers/html.js",
+        "mathjax-full/js/input/tex/AllPackages.js",
       ],
     },
   },

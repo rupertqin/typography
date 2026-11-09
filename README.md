@@ -65,7 +65,7 @@
 
 ```bash
 npm install
-npm run dev               # http://localhost:4321/
+npm run dev               # http://localhost:4321/（端口被占用会自动顺延；局域网/手机调试加 `-- --host`）
 npm run check:themes      # 校验主题与代码配色数据（改了这两份源就跑）
 npm run verify            # 主题校验 + 冒烟 + 构建
 npm run preview           # 预览 dist/
