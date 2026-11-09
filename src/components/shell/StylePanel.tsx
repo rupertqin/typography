@@ -60,8 +60,6 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
   return (
     <section data-style-panel className="shrink-0 border-b border-zinc-200 bg-white">
       <div className="flex items-center gap-3 px-4 py-2">
-        <span className="shrink-0 text-xs font-semibold text-zinc-900">样式</span>
-
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <button
             type="button"
@@ -71,13 +69,13 @@ export default function StylePanel({ theme, onClose }: StylePanelProps) {
             className={RESET_BUTTON}
           >
             <RotateCcw size={10} />
-            重置样式
+            重置
           </button>
           <button
             type="button"
             onClick={onClose}
             title="关闭（Esc）"
-            aria-label="关闭样式面板"
+            aria-label="关闭设置面板"
             className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
           >
             <X size={14} />

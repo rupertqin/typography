@@ -179,7 +179,7 @@ try {
 
   // 顶部样式区：顶栏「样式」按钮开合，Esc 关闭
   const styleHeaderButton = Array.from(mount.querySelectorAll('button')).find(
-    (btn) => (btn.getAttribute('title') ?? '') === '样式：配色与排版',
+    (btn) => (btn.getAttribute('title') ?? '') === '设置：配色与排版',
   ) as HTMLButtonElement | undefined;
   expect(Boolean(styleHeaderButton), '顶栏缺少「样式」按钮');
   expect(
@@ -227,7 +227,7 @@ try {
   // ---- 顶部样式区：顶栏「样式」按钮打开，配色与排版同屏 ----
   const styleToggle = () =>
     Array.from(mount.querySelectorAll('button')).find(
-      (btn) => (btn.getAttribute('title') ?? '') === '样式：配色与排版',
+      (btn) => (btn.getAttribute('title') ?? '') === '设置：配色与排版',
     ) as HTMLButtonElement | undefined;
   const openStylePanel = async () => {
     const toggle = styleToggle();
@@ -266,7 +266,7 @@ try {
   // 合并后配色与排版必须在同一屏，不再靠页签切换
   expect(text().includes('主色'), '样式区缺少主色分组');
   expect(text().includes('单独调色'), '样式区缺少部件调色');
-  expect(text().includes('重置样式'), '样式区缺少重置入口');
+  expect(text().includes('重置'), '样式区缺少重置入口');
   expect(!text().includes('重置配色') && !text().includes('重置排版'), '重置入口没有合并成一个');
 
   // 行距的值也必须绑在控件上：跟随主题时选中主题自身的行距（多数主题 1.8，gold/news 1.85）
@@ -497,7 +497,7 @@ try {
   useTypographyStore.getState().setMainColor('#123456');
   await wait(60);
   const resetAll = Array.from(mount.querySelectorAll('button')).find(
-    (btn) => (btn.textContent ?? '').trim() === '重置样式',
+    (btn) => (btn.textContent ?? '').trim() === '重置',
   ) as HTMLButtonElement | undefined;
   expect(Boolean(resetAll) && !resetAll?.disabled, '样式区的「重置样式」不可用');
   resetAll?.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));

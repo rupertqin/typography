@@ -17,10 +17,7 @@ interface RowProps {
  */
 export default function Row({ label, hint, children, className = '' }: RowProps) {
   return (
-    <div
-      className={`flex items-start gap-3 ${hint ? 'cursor-help' : ''} ${className}`}
-      title={hint}
-    >
+    <div className={`flex items-start gap-3 ${className}`} title={hint}>
       <span className="w-14 shrink-0 pt-1 text-xs font-medium leading-none text-zinc-700">
         {label}
       </span>

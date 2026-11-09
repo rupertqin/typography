@@ -229,12 +229,12 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           ))}
         </div>
 
-        {/* 工具条最右端：「样式」开关，开合紧贴其下的样式区 */}
+        {/* 工具条最右端：「设置」开关，开合紧贴其下的设置区 */}
         <button
           type="button"
           onClick={onToggleStyle}
           aria-pressed={styleOpen}
-          title="样式：配色与排版"
+          title="设置：配色与排版"
           className={`ml-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
             styleOpen
               ? 'ui-selected'
@@ -242,7 +242,7 @@ export default function WorkbenchBar({ editor, theme, isMobile, styleOpen, onTog
           }`}
         >
           <SlidersHorizontal size={14} />
-          <span>样式</span>
+          <span>设置</span>
           <ChevronDown
             size={12}
             strokeWidth={2.4}
