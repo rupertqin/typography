@@ -108,75 +108,54 @@ const QUOTE = /^(\s*(?:>\s*)+)(.*)$/;
 const LIST = /^(\s*)([-*+]|\d{1,9}[.)])(\s+)(.*)$/;
 const HR = /^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/;
 
+/** 每行套一层 `span[data-line]`：行内容不变（inline + 换行分隔），只是多了个可供测量的抓手 */
 export function highlightMarkdownSource(source: string): string {
   const lines = source.split('\n');
   const out: string[] = [];
   let fence: string | null = null;
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const fenceMatch = FENCE.exec(line);
+    let html = '';
 
     if (fence) {
       if (fenceMatch && fenceMatch[2].startsWith(fence)) {
-        out.push(`<span class="mh-fence">${escapeHtml(line)}</span>`);
+        html = `<span class="mh-fence">${escapeHtml(line)}</span>`;
         fence = null;
       } else {
-        out.push(`<span class="mh-code-block">${escapeHtml(line)}</span>`);
+        html = `<span class="mh-code-block">${escapeHtml(line)}</span>`;
       }
-      continue;
-    }
-
-    if (fenceMatch) {
+    } else if (fenceMatch) {
       fence = fenceMatch[2];
-      out.push(`<span class="mh-fence">${escapeHtml(line)}</span>`);
-      continue;
-    }
-
-    if (HR.test(line)) {
-      out.push(`<span class="mh-hr">${escapeHtml(line)}</span>`);
-      continue;
-    }
-
-    const heading = HEADING.exec(line);
-    if (heading) {
-      // 标题标记后的空格必须原样补回，少了它高亮层会比 textarea 短一个字符
-      out.push(
-        `${marker('heading', heading[1])}${escapeHtml(heading[2])}<span class="mh-heading">${highlightInline(
+      html = `<span class="mh-fence">${escapeHtml(line)}</span>`;
+    } else if (HR.test(line)) {
+      html = `<span class="mh-hr">${escapeHtml(line)}</span>`;
+    } else {
+      const heading = HEADING.exec(line);
+      const quote = QUOTE.exec(line);
+      const list = LIST.exec(line);
+      if (heading) {
+        // 标题标记后的空格必须原样补回，少了它高亮层会比 textarea 短一个字符
+        html = `${marker('heading', heading[1])}${escapeHtml(heading[2])}<span class="mh-heading">${highlightInline(
           heading[3],
-        )}</span>`,
-      );
-      continue;
-    }
-
-    const quote = QUOTE.exec(line);
-    if (quote) {
-      out.push(
-        `${marker('quote', quote[1])}<span class="mh-quote">${highlightInline(quote[2])}</span>`,
-      );
-      continue;
-    }
-
-    if (/^\s*\|/.test(line)) {
-      out.push(highlightTableRow(line));
-      continue;
-    }
-
-    if (/^\s*</.test(line)) {
-      out.push(`<span class="mh-html">${escapeHtml(line)}</span>`);
-      continue;
-    }
-
-    const list = LIST.exec(line);
-    if (list) {
-      out.push(
-        `${marker('list', list[1] + list[2])}${escapeHtml(
+        )}</span>`;
+      } else if (quote) {
+        html = `${marker('quote', quote[1])}<span class="mh-quote">${highlightInline(quote[2])}</span>`;
+      } else if (/^\s*\|/.test(line)) {
+        html = highlightTableRow(line);
+      } else if (/^\s*</.test(line)) {
+        html = `<span class="mh-html">${escapeHtml(line)}</span>`;
+      } else if (list) {
+        html = `${marker('list', list[1] + list[2])}${escapeHtml(
           list[3],
-        )}<span class="mh-list-text">${highlightInline(list[4])}</span>`,
-      );
-      continue;
+        )}<span class="mh-list-text">${highlightInline(list[4])}</span>`;
+      } else {
+        html = highlightInline(line);
+      }
     }
 
-    out.push(highlightInline(line));
+    out.push(`<span class="mh-line" data-line="${index}">${html}</span>`);
   }
 
   // 末尾补一个换行：<pre> 会吃掉最后一个换行，少了它最后一行的光标会跑偏

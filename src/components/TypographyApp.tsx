@@ -39,9 +39,12 @@ export default function TypographyApp() {
   const editor = useEditorController();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLDivElement>(null);
-  // 编辑区 ↔ 预览区双向滚动同步（按已滚比例对齐，内部带回环锁）
+  // 编辑区高亮层：与 textarea 同字同宽，滚动同步靠它把源码行换算成像素位置
+  const editorLayerRef = useRef<HTMLPreElement>(null);
+  // 编辑区 ↔ 预览区双向滚动同步（按块锚点对齐，内部带回环锁）
   const scrollSyncHandlers = useScrollSync({
     editorRef: editor.textareaRef,
+    layerRef: editorLayerRef,
     previewRef: scrollerRef,
     enabled: scrollSync,
   });
@@ -167,6 +170,7 @@ export default function TypographyApp() {
             accent={isHexColor(mainColor) ? mainColor : theme.accent}
             strongColor={editorStrongColor}
             bodyFont={bodyFont}
+            layerRef={editorLayerRef}
             onScroll={scrollSyncHandlers.onEditorScroll}
           />
         }

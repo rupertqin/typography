@@ -161,6 +161,51 @@ try {
       expect(Math.round(scroller.scrollTop) === 2400, '关闭同步后预览仍跟着动');
       useTypographyStore.getState().toggleScrollSync();
       await wait(60);
+
+      // 有锚点时必须按内容对齐：伪造成两侧行高/块高都不一样（源码 10px 一行、预览 5px 一行 + 错位起点），
+      // 只要两边都单调，插值就必须落在锚点上——按已滚比例对齐会得出 90 这种偏离的值。
+      const previous = useTypographyStore.getState().markdown;
+      useTypographyStore.getState().setMarkdown('# 标题\n\n第一段。\n\n第二段。\n\n第三段。');
+      await wait(160);
+      const layer = mount.querySelector('pre.md-editor-highlight') as HTMLElement | null;
+      const blocks = Array.from(mount.querySelectorAll<HTMLElement>('[data-src-line]'));
+      expect(Boolean(layer), '找不到编辑区高亮层');
+      expect(blocks.length === 4, `预览块没有带源码行号：${blocks.length} 个`);
+      if (layer) {
+        const stubRect = (node: Element, contentTop: () => number, height: () => number) => {
+          node.getBoundingClientRect = () =>
+            ({ top: contentTop(), bottom: contentTop() + height(), height: height() }) as DOMRect;
+        };
+        // 编辑区：第 i 行顶在 i*10，容器自身跟着滚
+        Array.from(layer.children).forEach((node, index) => {
+          stubRect(node, () => index * 10 - layer.scrollTop, () => 10);
+        });
+        // 容器自身不随内容移动：它的视口顶边是固定的
+        stubRect(layer, () => 0, () => 0);
+        // 预览：源码行 L 的块顶在 100+L*5（和源码侧完全不同比例），容器自身跟着滚
+        blocks.forEach((block) => {
+          const top = 100 + Number(block.dataset.srcLine) * 5;
+          stubRect(block, () => top - scroller!.scrollTop, () => 20);
+        });
+        stubRect(scroller, () => 0, () => 0);
+
+        editorEl.scrollTop = 30; // 落在第 3 行(20)到第 5 行(40)之间
+        editorEl.dispatchEvent(new win.Event('scroll'));
+        await wait(60);
+        expect(Math.round(scroller.scrollTop) === 120, `按内容对齐时预览应滚到 120，实际 ${scroller.scrollTop}`);
+
+        await wait(40);
+        scroller.scrollTop = 125; // 正好是第 5 行的锚点
+        scroller.dispatchEvent(new win.Event('scroll'));
+        await wait(60);
+        expect(Math.round(editorEl.scrollTop) === 40, `按内容对齐时编辑区应回到 40，实际 ${editorEl.scrollTop}`);
+
+        [layer, scroller, ...Array.from(layer.children), ...blocks].forEach((node) => {
+          delete (node as unknown as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+        });
+      }
+      useTypographyStore.getState().setMarkdown(previous);
+      await wait(160);
     }
   }
 

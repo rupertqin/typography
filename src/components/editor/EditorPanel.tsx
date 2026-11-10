@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import { highlightMarkdownSource } from '../../lib/highlight-markdown';
 import { useTypographyStore } from '../../lib/store';
 import type { EditorController } from '../../lib/useEditorController';
@@ -11,6 +11,8 @@ interface EditorPanelProps {
   strongColor: string;
   /** 与预览一致的正文字体栈、字重与基准字号 */
   bodyFont: { stack: string; weight?: number; size: number };
+  /** 高亮层节点：外层滚动同步要拿它量「源码第 N 行在第几像素」 */
+  layerRef?: RefObject<HTMLPreElement | null>;
   /** 滚动时通知外层做编辑区 → 预览区同步 */
   onScroll?: () => void;
 }
@@ -21,10 +23,12 @@ interface EditorPanelProps {
  * 插入工具条、撤销重做都搬到顶部 WorkbenchBar 了，状态在 useEditorController 里，
  * 这里只负责渲染和「高亮层跟着 textarea 滚动」这类纯视图的事。
  */
-export default function EditorPanel({ editor, accent, strongColor, bodyFont, onScroll }: EditorPanelProps) {
+export default function EditorPanel({ editor, accent, strongColor, bodyFont, layerRef, onScroll }: EditorPanelProps) {
   const markdown = useTypographyStore((state) => state.markdown);
 
-  const highlightLayer = useRef<HTMLPreElement>(null);
+  // 外部（滚动同步）也要读这一层来换算行位置，没有外部 ref 时才用内部的
+  const internalLayer = useRef<HTMLPreElement>(null);
+  const highlightLayer = layerRef ?? internalLayer;
   // 中文输入法组词时，浏览器用 textarea 自己的颜色画候字；字透明就看不清，
   // 所以在组词期间把高亮层藏起来、让 textarea 正常显字。
   const [composing, setComposing] = useState(false);

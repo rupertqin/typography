@@ -418,6 +418,65 @@ const marked = new Marked({
   },
 });
 
+/** 统计 [from, to) 之间的换行数：源码行号完全靠它累加 */
+function countNewlines(text: string, from: number, to: number): number {
+  let count = 0;
+  for (let index = from; index < to; index += 1) {
+    if (text.charCodeAt(index) === 10) count += 1;
+  }
+  return count;
+}
+
+/**
+ * 把顶层块的起始行号写到它的第一个标签上（`data-src-line`，1 基）。
+ * 预览区滚动同步靠这个属性把渲染出来的块对回源码行；复制时 `stripAttributes` 会清掉所有 data-*。
+ * 原样透传的 HTML 块不加：那是用户自己写的标记，不去改它（少一个锚点不影响对齐）。
+ */
+function markSourceLine(html: string, line: number): string {
+  const match = /^<([a-zA-Z][\w-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/.exec(html);
+  if (!match) return html;
+  return `<${match[1]} data-src-line="${line}"${match[2]}>${html.slice(match[0].length)}`;
+}
+
+/**
+ * Markdown → HTML。逐块渲染而不是整篇一次 `marked.parse`，就是为了拿到「每个块从第几行开始」：
+ * marked 的 token 不带位置信息，但块 token 的 `raw` 是源码的原样切片，
+ * 按顺序在源码里 indexOf 一遍就能还原行号（相邻的 text token 要合并，否则一段会被拆成多个 <p>）。
+ */
 export function parseMarkdown(markdown: string): string {
-  return marked.parse(markdown, { async: false }) as string;
+  // 行号要跟 marked 内部的换行归一化对齐（lex 会把 CRLF 换成 LF）
+  const source = markdown.replace(/\r\n|\r/g, '\n');
+  const tokens = marked.lexer(source) as any[];
+
+  const chunks: any[][] = [];
+  for (const token of tokens) {
+    const last = chunks[chunks.length - 1];
+    if (token.type === 'text' && last && last[last.length - 1].type === 'text') last.push(token);
+    else chunks.push([token]);
+  }
+
+  const out: string[] = [];
+  let cursor = 0;
+  /** cursor 之前已经数过的换行数 */
+  let lines = 0;
+
+  for (const chunk of chunks) {
+    const raw = chunk.map((token) => (typeof token.raw === 'string' ? token.raw : '')).join('');
+    const at = raw ? source.indexOf(raw, cursor) : -1;
+    // 扩展 tokenizer 的 raw 可能把块前的空行也吃进来（mermaid 的 `^\s*`），行号要跳过这段空白
+    const lead = at >= 0 ? (raw.match(/^\s*/)?.[0].length ?? 0) : 0;
+    if (at >= 0) cursor = at;
+    const start = Math.min(source.length, cursor + lead);
+    lines += countNewlines(source, cursor, start);
+    cursor = start;
+
+    const html = marked.parser(chunk) as string;
+    out.push(chunk[0].type === 'html' ? html : markSourceLine(html, lines + 1));
+
+    const end = Math.min(source.length, cursor + raw.length - lead);
+    lines += countNewlines(source, cursor, end);
+    cursor = end;
+  }
+
+  return out.join('');
 }
