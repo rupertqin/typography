@@ -176,7 +176,9 @@ try {
           node.getBoundingClientRect = () =>
             ({ top: contentTop(), bottom: contentTop() + height(), height: height() }) as DOMRect;
         };
-        // 编辑区：第 i 行顶在 i*10，容器自身跟着滚
+        // 编辑区：第 i 行顶在 i*10，容器自身跟着滚；可滚范围只有 50px，
+        // 让最后一行(60)顶不到上沿——这正是「滚不到的位置」那种锚点
+        fakeMetrics(editorEl, 250, 200);
         Array.from(layer.children).forEach((node, index) => {
           stubRect(node, () => index * 10 - layer.scrollTop, () => 10);
         });
@@ -194,11 +196,25 @@ try {
         await wait(60);
         expect(Math.round(scroller.scrollTop) === 120, `按内容对齐时预览应滚到 120，实际 ${scroller.scrollTop}`);
 
+        // 滚到底：末段锚点顶不到上沿，不能再按锚点插值，必须和预览一起见底
+        await wait(40);
+        editorEl.scrollTop = 50;
+        editorEl.dispatchEvent(new win.Event('scroll'));
+        await wait(60);
+        expect(Math.round(scroller.scrollTop) === 2400, `编辑区到底时预览也应到底，实际 ${scroller.scrollTop}`);
+
         await wait(40);
         scroller.scrollTop = 125; // 正好是第 5 行的锚点
         scroller.dispatchEvent(new win.Event('scroll'));
         await wait(60);
         expect(Math.round(editorEl.scrollTop) === 40, `按内容对齐时编辑区应回到 40，实际 ${editorEl.scrollTop}`);
+
+        // 反向到底也一样
+        await wait(40);
+        scroller.scrollTop = 2400;
+        scroller.dispatchEvent(new win.Event('scroll'));
+        await wait(60);
+        expect(Math.round(editorEl.scrollTop) === 50, `预览到底时编辑区也应到底，实际 ${editorEl.scrollTop}`);
 
         [layer, scroller, ...Array.from(layer.children), ...blocks].forEach((node) => {
           delete (node as unknown as { getBoundingClientRect?: unknown }).getBoundingClientRect;

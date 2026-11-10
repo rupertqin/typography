@@ -64,8 +64,13 @@ interface Anchors {
   preview: number[];
 }
 
-function collectAnchors(layer: HTMLElement | null, preview: HTMLElement): Anchors | null {
-  if (!layer) return null;
+function collectAnchors(
+  layer: HTMLElement | null,
+  preview: HTMLElement,
+  editorRange: number,
+  previewRange: number,
+): Anchors | null {
+  if (!layer || editorRange <= 0 || previewRange <= 0) return null;
   const blocks = preview.querySelectorAll<HTMLElement>('[data-src-line]');
   if (blocks.length < 2) return null;
 
@@ -88,6 +93,8 @@ function collectAnchors(layer: HTMLElement | null, preview: HTMLElement): Anchor
 
     const editorY = sourceRect.top - editorBase;
     const previewY = block.getBoundingClientRect().top - previewBase;
+    // 顶不到视口上沿的块是「滚不到的位置」，留着只会把末段压没（见下面的端点）
+    if (editorY > editorRange || previewY > previewRange) return;
     const last = editor.length - 1;
     // 两侧都必须严格递增：块被主题装饰替换、或被折叠时会出现交叉，会把内容往回拉
     if (last >= 0 && (editorY <= editor[last] || previewY <= target[last])) return;
@@ -95,7 +102,18 @@ function collectAnchors(layer: HTMLElement | null, preview: HTMLElement): Anchor
     target.push(previewY);
   });
 
-  return editor.length >= 2 ? { editor, preview: target } : null;
+  if (editor.length < 2) return null;
+
+  // 末尾补一个端点（可滚距离 ↔ 可滚距离）：文档最后几屏里的块顶不到视口上沿，
+  // 光靠锚点算不出「到底」，编辑区滚到底时预览会差一截。doocs 是直接特判两头，
+  // 这里用连续的端点锚点，滚到底两侧一起见底、也不会有跳变。
+  const last = editor.length - 1;
+  if (editor[last] < editorRange || target[last] < previewRange) {
+    editor.push(editorRange);
+    target.push(previewRange);
+  }
+
+  return { editor, preview: target };
 }
 
 /**
@@ -167,15 +185,17 @@ export function useScrollSync({ editorRef, layerRef, previewRef, enabled }: Scro
     const target: HTMLElement = fromEditor ? preview : editor;
     const targetSide: Side = fromEditor ? 'preview' : 'editor';
 
-    const targetRange = target.scrollHeight - target.clientHeight;
+    const editorRange = Math.max(0, editor.scrollHeight - editor.clientHeight);
+    const previewRange = Math.max(0, preview.scrollHeight - preview.clientHeight);
+    const sourceRange = fromEditor ? editorRange : previewRange;
+    const targetRange = fromEditor ? previewRange : editorRange;
     if (targetRange <= 0) return;
-    const sourceRange = Math.max(0, source.scrollHeight - source.clientHeight);
 
-    const anchors = collectAnchors(layerRef.current, preview);
+    const anchors = collectAnchors(layerRef.current, preview, editorRange, previewRange);
     const mapped = anchors
       ? fromEditor
-        ? mapPosition(editor.scrollTop, anchors.editor, anchors.preview, sourceRange, targetRange)
-        : mapPosition(preview.scrollTop, anchors.preview, anchors.editor, sourceRange, targetRange)
+        ? mapPosition(editor.scrollTop, anchors.editor, anchors.preview, editorRange, previewRange)
+        : mapPosition(preview.scrollTop, anchors.preview, anchors.editor, previewRange, editorRange)
       : null;
     const top = mapped ?? progress(source) * targetRange;
     if (Math.abs(target.scrollTop - top) < EPSILON) return;
