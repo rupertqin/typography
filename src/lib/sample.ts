@@ -1,4 +1,10 @@
-/** 默认示例文章：逐字取自 doocs-md 的 markdown.zh-CN.md（不删减，未支持的语法待后续移植） */
+/**
+ * 默认示例文章：只用本工程真支持的语法写，既是首次打开时的演示稿，也是渲染冒烟的夹具。
+ *
+ * 不支持的语法一律不放进示例——否则预览里会露出原样输出的标记
+ * （`[TOC]`、`::: tip`、`[文字]{注音}`、横屏幻灯片、PlantUML / Infographic 之类），
+ * 让人以为排版坏了。
+ */
 export const SAMPLE_MARKDOWN = `# 探索 Markdown 的奇妙世界
 
 欢迎来到 Markdown 的奇妙世界！无论你是写作爱好者、开发者、博主，还是想要简单记录点什么的人，Markdown 都能成为你新的好伙伴。它不仅让写作变得简单明了，还能轻松地将内容转化为漂亮的网页格式。今天，我们将全面探讨 Markdown 的基础和进阶语法，让你在这个过程中充分享受写作的乐趣！
@@ -58,17 +64,15 @@ Markdown 中的段落就是一行接一行的文本。要创建新段落，只�
 - **链接**：用方括号和圆括号创建链接 \`[显示文本](链接地址)\`。
 - **图片**：和链接类似，只需在前面加上 \`!\`，如 \`![描述文本](图片链接)\`。
 
-[访问 Doocs](https://github.com/doocs)
+[Markdown 语法说明](https://commonmark.org/help/)
 
-![doocs](https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/logo-2.png)
+![在这里插入你的配图](https://example.com/sample.png)
 
 轻松实现富媒体内容展示！
 
-> 因微信公众号平台不支持除公众号内容以外的链接，故其他平台的链接，会呈现链接样式但无法点击跳转。
+> 微信公众号平台只允许链接到公众号内容，其他平台的链接会保留链接样式但点不动。想让读者看到地址，就把链接写进脚注[^1]，脚注里会自动补出完整地址。
 
-> 对于这些链接请注意明文书写，或点击左上角「格式->微信外链接转底部引用」开启引用，这样就可以在底部观察到链接指向。
-
-另外，使用 \`<![alt](url),![alt](url)>\` 语法可以创建横屏滑动幻灯片，支持微信公众号平台。建议使用相似尺寸的图片以获得最佳显示效果。
+[^1]: 语法说明见 [CommonMark](https://commonmark.org/help/)。
 
 ### 6. 引用：引用名言或引人深思的句子
 
@@ -86,7 +90,7 @@ Markdown 中的段落就是一行接一行的文本。要创建新段落，只�
 - **代码块**：用三个反引号包裹，并指定语言，如：
 
 \`\`\`js
-console.log(\`Hello, Doocs!\`)
+console.log('Hello, Markdown!')
 \`\`\`
 
 语法高亮让你的代码更易读。
@@ -103,24 +107,13 @@ console.log(\`Hello, Doocs!\`)
 
 Markdown 支持简单的表格，用 \`|\` 和 \`-\` 分隔单元格和表头。
 
-| 项目人员                                    | 邮箱                   | 微信号       |
-| ------------------------------------------- | ---------------------- | ------------ |
-| [yanglbme](https://github.com/yanglbme)     | contact@yanglibin.info | YLB0109      |
-| [YangFong](https://github.com/YangFong)     | yangfong2022@gmail.com | yq2419731931 |
+| 章节       | 状态   | 说明                        |
+| ---------- | ------ | --------------------------- |
+| 基础语法   | 已完成 | 标题、列表、引用、代码块    |
+| 进阶语法   | 已完成 | 公式、图表、脚注            |
+| 排版主题   | 可选   | 顶栏里随时切换              |
 
 这样的表格让数据展示更为清爽！
-
-> 手动编写标记太麻烦？我们提供了便捷方式。左上方点击「编辑->插入表格」，即可快速实现表格渲染。
-
-### 10. 目录：自动生成文档导航
-
-在文档中单独一行写入 \`[TOC]\`，即可根据文档标题自动生成层级目录，方便读者快速跳转。
-
-\`\`\`markdown
-[TOC]
-\`\`\`
-
-> 一级标题（\`#\`）不会出现在目录中，目录锚点根据标题在文档中的位置自动生成。
 
 ## Markdown 进阶技巧
 
@@ -164,9 +157,6 @@ $$
 $$
 
 这是展示复杂数学表达的利器！
-
-> [!TIP]
-> 预览区域的 LaTeX 公式支持点击编辑，点击后弹出公式编辑器，内置常用公式库，可快速完成公式修改。
 
 ### 2. Mermaid 流程图：可视化流程
 
@@ -213,172 +203,44 @@ pie
 
 > 更多用法，参见：[Mermaid User Guide](https://mermaid.js.org/intro/getting-started.html)。
 
-### 3. PlantUML 流程图：可视化流程
-
-PlantUML 是强大的可视化工具，可以在 Markdown 中创建流程图、时序图等。
-
-\`\`\`plantuml
-@startuml
-participant Participant as Foo
-actor       Actor       as Foo1
-boundary    Boundary    as Foo2
-control     Control     as Foo3
-entity      Entity      as Foo4
-database    Database    as Foo5
-collections Collections as Foo6
-queue       Queue       as Foo7
-Foo -> Foo1 : To actor
-Foo -> Foo2 : To boundary
-Foo -> Foo3 : To control
-Foo -> Foo4 : To entity
-Foo -> Foo5 : To database
-Foo -> Foo6 : To collections
-Foo -> Foo7: To queue
-@enduml
-\`\`\`
-
-> 更多用法，参见：[PlantUML 主页](https://plantuml.com/zh/)。
-
-### 4. Infographic 信息图：可视化数据
-
-新一代信息图可视化引擎，让文字信息栩栩如生！
-
-\`\`\`infographic
-infographic list-row-horizontal-icon-arrow
-data
-  title 客户增长引擎
-  desc 多渠道触达与复购提升
-  items
-    - label 线索获取
-      value 18.6
-      desc 渠道投放与内容获客
-      icon rocket-launch
-    - label 转化提效
-      value 12.4
-      desc 线索评分与自动跟进
-      icon progress-check
-    - label 复购提升
-      value 9.8
-      desc 会员体系与权益运营
-      icon account-sync
-    - label 口碑传播
-      value 6.2
-      desc 社群激励与推荐裂变
-      icon account-group
-\`\`\`
-
-> 更多用法，参见：[AntV Infographic Gallery](https://infographic.antv.vision/gallery)。
-
-### 5. Ruby 注音：注音标注
-
-支持两种格式：
-
-\`\`\`md
-1. [文字]{注音}
-2. [文字]^(注音)
-\`\`\`
-
-渲染效果如下：
-
-[你好]{nǐ hǎo} [世界]{shì jiè}
-
-支持四种分隔符： \`・\`（中点）、\`．\` (全角句点)、\`。\` (中文句号)、\`-\` (英文减号)
-
-示例：
-
-\`\`\`md
-[你好世界]{nǐ・hǎo・shì・jiè}
-[小夜時雨]^(さ・よ・しぐれ)
-\`\`\`
-
-[你好世界]{nǐ・hǎo・shì・jiè}
-[小夜時雨]^(さ・よ・しぐれ)
-
-当字符串数量与分隔符数量不匹配时，会自动匹配到最合适的分隔符。
-
-\`\`\`md
-[小夜時雨]{さ・よ・しぐれ}
-[小夜時雨]{さ・よ}
-[小夜]{さ・よ・しぐれ}
-[小夜時雨]{さ・よ・しぐれ・extra}
-\`\`\`
-
-[小夜時雨]{さ・よ・しぐれ}
-[小夜時雨]{さ・よ}
-[小夜]{さ・よ・しぐれ}
-[小夜時雨]{さ・よ・しぐれ・extra}
-
-### 6. 警告块与环境：突出重点内容
-
-使用 \`> [!类型]\` 或 \`::: 类型 ... :::\` 语法即可创建带样式的警告块。类型后还能跟一个**自定义标题**，正文支持完整的 Markdown 与公式。
-
-常用的提示类型：
-
-> [!NOTE]
-> 提醒读者即使在快速浏览时也应留意的信息。
-
-> [!TIP]
-> 帮助读者更顺利完成操作的小技巧。
-
-> [!IMPORTANT] 上线前必读
-> 类型后可以跟自定义标题，覆盖默认标题。
-
-> [!WARNING]
-> 需要立即引起注意的关键内容。
-
-也可以使用 \`:::\` 容器语法，效果相同：
-
-::: tip
-这是一个使用容器语法的提示框。
-:::
-
-还内置了定理、引理、定义等**学术环境**，正文可直接书写公式：
-
-::: theorem 勾股定理
-在直角三角形中，斜边的平方等于两条直角边的平方和：$a^2 + b^2 = c^2$。
-:::
-
-::: definition
-若对任意 $\\varepsilon > 0$，存在 $\\delta > 0$，使得 $0 < |x - a| < \\delta$ 时有 $|f(x) - L| < \\varepsilon$，则称 $\\lim_{x \\to a} f(x) = L$。
-:::
-
-::: proof
-由上述定义直接可得，证毕。
-:::
-
-类型名称可以是**任意文字**（包括中文），未匹配到内置样式时会使用统一的默认样式，并以名称作为标题：
-
-::: 推论
-任意名称都会渲染成一个带标题的方框。
-:::
-
 ## 结语
 
 Markdown 是一种简单、强大且易于掌握的标记语言，通过学习基础和进阶语法，你可以快速创作内容并有效传达信息。无论是技术文档、个人博客还是项目说明，Markdown 都是你的得力助手。希望这篇内容能够带你全面了解 Markdown 的潜力，让你的写作更加丰富多彩！
 
 现在，拿起 Markdown 编辑器，开始创作吧！探索 Markdown 的世界，你会发现它远比想象中更精彩！
 
-### 推荐阅读
-
-- [阿里又一个 20k+ stars 开源项目诞生，恭喜 fastjson！](https://mp.weixin.qq.com/s/RNKDCK2KoyeuMeEs6GUrow)
-- [刷掉 90% 候选人的互联网大厂海量数据面试题（附题解 + 方法总结）](https://mp.weixin.qq.com/s/rjGqxUvrEqJNlo09GrT1Dw)
-- [好用！期待已久的文本块功能究竟如何在 Java 13 中发挥作用？](https://mp.weixin.qq.com/s/kalGv5T8AZGxTnLHr2wDsA)
-- [2019 GitHub 开源贡献排行榜新鲜出炉！微软谷歌领头，阿里跻身前 12！](https://mp.weixin.qq.com/s/_q812aGD1b9QvZ2WFI0Qgw)
-
 ---
 
-<center>
-    <img src="https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/1648303220922-7e14aefa-816e-44c1-8604-ade709ca1c69.png" alt="qr code" style="width: 100px;">
-</center>
+<center>写完之后，点右上角「复制」，粘进公众号后台就是现在看到的样子。</center>
 `;
 
-/** 旧版内置示例的开头（用户没改过的旧草稿会原样以它开头） */
+/** 早期示例的开头（用户没改过的旧草稿会原样以它开头） */
 const LEGACY_SAMPLE_HEADS = ['# 公众号排版风格示例'];
+
+/**
+ * 后面几版旧示例的指纹（`长度:FNV-1a base36`）。
+ *
+ * 内置示例换版后，浏览器里存着的草稿还是旧的那篇——用户会以为「改了个寂寞」。
+ * 但旧文案一直打进包里太占地方，所以只留指纹：整篇一模一样（说明一个字都没动过）
+ * 才升级，动过一个字就原样保留。
+ */
+const LEGACY_SAMPLE_FINGERPRINTS = ['6688:1lhq7lb'];
+
+/** 内容指纹：长度 + FNV-1a（32 位），用来认「原封不动的旧示例」 */
+function fingerprint(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${text.length}:${hash.toString(36)}`;
+}
 
 /**
  * 是不是「没动过的旧示例」：只在这种情况下自动升级成新示例。
  * 用户自己写的内容、或清空后的空稿都不会被覆盖。
  */
 export function isLegacySample(markdown: string): boolean {
-  return LEGACY_SAMPLE_HEADS.some((head) => markdown.startsWith(head));
+  if (LEGACY_SAMPLE_HEADS.some((head) => markdown.startsWith(head))) return true;
+  return LEGACY_SAMPLE_FINGERPRINTS.includes(fingerprint(markdown));
 }

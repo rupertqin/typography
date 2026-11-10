@@ -12,8 +12,8 @@ const { THEMES } = await import('../src/lib/themes');
 const { SAMPLE_MARKDOWN } = await import('../src/lib/sample');
 const { isLegacySample } = await import('../src/lib/sample');
 
-// 示例文章逐字取自 doocs-md（含尚未支持的语法），脚注这类断言不能依赖它，
-// 单独拼一份覆盖「脚注 + 图片 + 代码块」的测试稿
+// 示例文章只放支持的语法；这里再追加一段引用脚注的正文，
+// 让「脚注 + 图片 + 代码块」这几项断言不依赖示例的具体措辞
 const SMOKE_MARKDOWN = `${SAMPLE_MARKDOWN}
 
 需要注明出处时用脚注[^1]，会统一列在文末。

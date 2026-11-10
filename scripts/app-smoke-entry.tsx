@@ -581,6 +581,13 @@ try {
 
   // 选颜色的按钮统一走 ColorChoiceButton：选中填色、未选中显示色点，颜色与预览一致
   {
+    // 链接色 / 引用底色要预览里确实有 <a> 和 <blockquote>，这里用一份最小稿子，
+    // 别让断言依赖内置示例的具体内容（示例是会调整的）
+    useTypographyStore
+      .getState()
+      .setMarkdown('正文和一个 [公众号文章](https://mp.weixin.qq.com/s/example)。\n\n> 一段引用。');
+    await wait(180);
+
     const { styleValue } = await import('../src/lib/recolor');
     // jsdom 把内联色规整成 rgb()，预览侧还是原样的 hex：比数值不比字面
     const rgb = (value = '') => {
