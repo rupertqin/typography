@@ -1087,6 +1087,211 @@ try {
     );
   }
 
+  // ---- 左上角菜单栏（参考 doocs-md 的 header menubar） ----
+  {
+    const trigger = (label: string) =>
+      Array.from(mount.querySelectorAll('button')).find(
+        (btn) =>
+          (btn.textContent ?? '').trim() === label && btn.getAttribute('aria-haspopup') === 'menu',
+      ) as HTMLButtonElement | undefined;
+
+    expect(
+      Boolean(trigger('文件') && trigger('编辑') && trigger('插入') && trigger('视图')),
+      '左上角缺少文件/编辑/插入/视图菜单',
+    );
+    expect(Boolean(trigger('文件')?.closest('header')), '菜单栏不在顶栏里');
+    expect(
+      trigger('文件')?.getAttribute('aria-expanded') === null,
+      '菜单触发器不该用 aria-expanded（主题下拉靠它被认出来）',
+    );
+    // 顶栏顺序：LOGO 块（图标 + 标语是一体）在菜单左边
+    {
+      const children = Array.from(mount.querySelector('header')?.children ?? []);
+      const brandIndex = children.findIndex(
+        (node) => node.tagName === 'DIV' && Boolean(node.querySelector('svg')) && !node.querySelector('button'),
+      );
+      const brand = children[brandIndex];
+      const menuIndex = children.findIndex((node) => node.querySelector('[aria-haspopup="menu"]'));
+      expect(
+        brandIndex >= 0 && menuIndex > brandIndex,
+        `LOGO 不在菜单左边：logo=${brandIndex} menu=${menuIndex}`,
+      );
+      // 标语属于 LOGO 块：和图标同一个容器，中间不夹菜单
+      expect(Boolean(brand?.querySelector('h1')), '标语（slogan）没有跟在 LOGO 后面');
+      expect(
+        (brand?.querySelector('h1')?.textContent ?? '').includes('公众号排版风格'),
+        'LOGO 块里的标语不对',
+      );
+      expect(
+        !brand?.querySelector('[aria-haspopup="menu"]'),
+        '菜单被夹在 LOGO 与标语之间了',
+      );
+    }
+
+    const menuItems = () => Array.from(mount.querySelectorAll('[role^="menuitem"]'));
+    clickButton(trigger('文件'));
+    await wait(80);
+    expect(
+      menuItems().some((btn) => (btn.textContent ?? '').includes('导出 PDF')),
+      '文件菜单里没有「导出 PDF」',
+    );
+    expect(
+      menuItems().some((btn) => (btn.textContent ?? '').includes('导出 Markdown')),
+      '文件菜单里没有「导出 Markdown」',
+    );
+
+    win.document.dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true }));
+    await wait(60);
+    expect(menuItems().length === 0, '点击别处后菜单没有收起');
+
+    clickButton(trigger('文件'));
+    await wait(80);
+    const pdfItem = menuItems().find((btn) => (btn.textContent ?? '').includes('导出 PDF')) as
+      | HTMLButtonElement
+      | undefined;
+    clickButton(pdfItem);
+    await wait(140);
+
+    const dialog = mount.querySelector('[role="dialog"]') as HTMLElement | null;
+    expect(Boolean(dialog), '「导出 PDF」没有打开选项对话框');
+    expect((dialog?.textContent ?? '').includes('页眉显示文章标题'), 'PDF 对话框缺少页眉选项');
+    expect((dialog?.textContent ?? '').includes('页面边距'), 'PDF 对话框缺少页边距选项');
+    const radioLabels = Array.from(dialog?.querySelectorAll('[role="radio"]') ?? []).map((node) =>
+      (node.textContent ?? '').trim(),
+    );
+    expect(radioLabels.includes('第 1 / 3 页') && radioLabels.includes('紧凑'), `PDF 对话框档位不全：${radioLabels.join(',')}`);
+
+    // 预览：A4 纸 + 正文（这块在 jsdom 里量不出高度，退化成整篇一页）
+    const preview = dialog?.querySelector('[data-pdf-preview]') as HTMLElement | null;
+    expect(Boolean(preview), 'PDF 对话框缺少预览区');
+    expect(
+      (preview?.querySelectorAll('[data-pdf-page]').length ?? 0) >= 1,
+      'PDF 预览没有排出纸张',
+    );
+    expect((preview?.textContent ?? '').includes('正文段落'), 'PDF 预览里没有正文');
+
+    // 选中态的开关别再是纯黑实底（近黑留一点灰）
+    const switchOn = dialog?.querySelector('[role="switch"][aria-checked="true"]') as HTMLElement | null;
+    expect(Boolean(switchOn), 'PDF 对话框缺少开关');
+    expect(
+      !(switchOn?.className ?? '').includes('bg-zinc-900') && !(switchOn?.className ?? '').includes('bg-black'),
+      '开关选中态还是全黑',
+    );
+    // 拉柄必须写死 left：不写时浏览器按 button 的 text-align:center 取静态位置，会跑出轨道
+    expect(
+      (switchOn?.querySelector('span')?.getAttribute('class') ?? '').includes('left-0.5'),
+      '开关拉柄没有写死 left（会被 button 的 text-align 顶到轨道外）',
+    );
+
+    win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wait(120);
+    expect(!mount.querySelector('[role="dialog"]'), 'Esc 未关闭 PDF 对话框');
+  }
+
+  // ---- PDF / HTML 文档构建（打印走浏览器，文档本身可单测） ----
+  {
+    const { buildPrintDocument, collectArticleHtml, normalizePdfOptions, readPdfOptions, writePdfOptions } =
+      await import('../src/lib/print-pdf');
+    const { articleTitle, safeFileName } = await import('../src/lib/download');
+
+    const base = normalizePdfOptions(null);
+    const doc = buildPrintDocument({
+      html: '<p>正文</p>',
+      title: '标题 "引号"',
+      options: base,
+      siteUrl: 'https://example.com/typography/',
+      paged: true,
+    });
+    expect(doc.includes('class="pg-doc"'), 'PDF 文档缺少正文容器');
+    expect(doc.includes('@page'), 'PDF 文档缺少 @page');
+    expect(doc.includes('@top-center'), '页眉标题没写进页边盒');
+    expect(
+      doc.includes('counter(page)') && doc.includes('counter(pages)'),
+      '页码没有用 CSS 计数器',
+    );
+    expect(doc.includes('标题 \\"引号\\"'), '标题没有转义进 CSS 字符串');
+    // 预览里的横向滚动容器到纸上必须放开，否则右边被裁掉
+    expect(/overflow:\s*visible\s*!important/.test(doc), '打印样式没有放开横向滚动容器');
+
+    const noPages = buildPrintDocument({
+      html: '<p>正文</p>',
+      title: '不该出现在页眉的标题',
+      options: { ...base, showPageNumbers: false, showTitleHeader: false },
+      paged: true,
+    });
+    expect(!noPages.includes('counter(page)'), '关掉页码后仍写了页码计数器');
+    // 关掉页眉时 @top-center 只剩一个空盒（用来压掉浏览器自带的页眉）
+    expect(
+      noPages.includes('@top-center { content: ""; }'),
+      '关掉页眉后 @top-center 不是空盒',
+    );
+
+    const fileDoc = buildPrintDocument({ html: '<p>正文</p>', title: 'T', paged: false });
+    expect(!fileDoc.includes('@page'), '导出的 HTML 文件不该带 @page');
+
+    // 导出正文：没画出来的图整块丢掉（同复制链路的取舍）
+    const fixture2 = win.document.createElement('div');
+    fixture2.innerHTML =
+      '<div data-mermaid data-state="loading">图表渲染中…</div>' +
+      '<div data-mermaid data-state="ready"><svg></svg></div>' +
+      '<p>正文段落。</p>';
+    const exported = collectArticleHtml(fixture2);
+    expect(!exported.includes('图表渲染中'), '未渲染完的图没有从导出正文里去掉');
+    expect(exported.includes('<svg'), '已渲染的图被误删');
+    expect(exported.includes('正文段落。'), '导出正文丢了段落');
+
+    expect(articleTitle('# 我的标题\n\n正文') === '我的标题', '标题没从 Markdown 里取到');
+    expect(
+      articleTitle('一段没有标题的正文。') === '一段没有标题的正文。',
+      `没有标题行时没退到首段文字：${articleTitle('一段没有标题的正文。')}`,
+    );
+    expect(safeFileName('a/b:c*d?e') === 'a-b-c-d-e', `文件名没清洗：${safeFileName('a/b:c*d?e')}`);
+
+    // ---- 预览分页：页边距换算 + 按块切页 ----
+    {
+      const { A4_HEIGHT_PX, A4_WIDTH_PX, marginPx, pageContentSize, sliceIntoPages } = await import(
+        '../src/lib/print-preview'
+      );
+      const margins = marginPx('default');
+      const cmToPx = 96 / 2.54;
+      expect(Math.abs(margins.top - 1.6 * cmToPx) < 0.5, `页边距没换算成 px：${margins.top}`);
+      expect(Math.abs(margins.left - 1.2 * cmToPx) < 0.5, `左右页边距不对：${margins.left}`);
+      const content = pageContentSize(margins);
+      expect(
+        content.width < A4_WIDTH_PX && content.height < A4_HEIGHT_PX,
+        '正文区没有扣掉页边距',
+      );
+
+      // 三个 400px 高的块，容量 900px → 两页（前两个一页、第三个换页）
+      const box = win.document.createElement('div');
+      box.innerHTML =
+        '<p style="height:400px">甲</p><p style="height:400px">乙</p><p style="height:400px">丙</p>';
+      win.document.body.appendChild(box);
+      Array.from(box.children as HTMLCollectionOf<HTMLElement>).forEach((node, index) => {
+        node.getBoundingClientRect = () =>
+          ({ top: index * 400, bottom: index * 400 + 400, height: 400 }) as DOMRect;
+      });
+      box.getBoundingClientRect = () => ({ top: 0, bottom: 1200, height: 1200 }) as DOMRect;
+      const sliced = sliceIntoPages(box, 900);
+      expect(sliced.length === 2, `按块切页页数不对：${sliced.length}`);
+      expect(
+        sliced[0]?.length === 2 && sliced[1]?.length === 1,
+        `按块切页分组不对：${sliced.map((page) => page.length).join('/')}`,
+      );
+      expect((sliced[1]?.[0] ?? '').includes('丙'), '切页后块顺序错了');
+      box.remove();
+    }
+
+    // 选项存本机
+    writePdfOptions({ ...base, pageNumberPosition: 'bottomLeft', showSiteFooter: true });
+    const saved = readPdfOptions();
+    expect(
+      saved.pageNumberPosition === 'bottomLeft' && saved.showSiteFooter === true,
+      'PDF 导出选项没有存到本地',
+    );
+    writePdfOptions(base);
+  }
+
   // 持久化：storage key 与原站一致，且字段齐全
   const raw = win.localStorage.getItem('typography');
   expect(Boolean(raw), '未写入 localStorage');
@@ -1130,5 +1335,5 @@ if (problems.length) {
 }
 
 console.log(
-  '[app-smoke] 通过：布局骨架（顶栏/分栏/状态栏/顶部样式区）、主题菜单、合一后的配色与排版设置、SVG 清洗与复制链路均正常',
+  '[app-smoke] 通过：布局骨架（顶栏/分栏/状态栏/顶部样式区）、主题菜单、合一后的配色与排版设置、SVG 清洗与复制链路、左上角菜单栏与 PDF 导出（选项/预览/分页/文档构建）均正常',
 );

@@ -2,14 +2,19 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Newspaper } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import EditorPanel from './editor/EditorPanel';
+import PdfExportDialog from './pdf/PdfExportDialog';
 import PreviewPanel from './preview/PreviewPanel';
 import AppHeader from './shell/AppHeader';
+import AppMenuBar from './shell/AppMenuBar';
 import SplitPane from './shell/SplitPane';
 import StatusBar from './shell/StatusBar';
 import StylePanel from './shell/StylePanel';
 import WorkbenchBar from './shell/WorkbenchBar';
 import { copyRichText } from '../lib/clipboard';
-import { buildCopyBundleWhenReady } from '../lib/copy-html';
+import { buildCopyBundleWhenReady, waitForDiagrams } from '../lib/copy-html';
+import { articleTitle, downloadTextFile, pickTextFile, safeFileName } from '../lib/download';
+import { buildPrintDocument, collectArticleHtml, currentSiteUrl, exportPdf } from '../lib/print-pdf';
+import type { PdfExportOptions } from '../lib/print-pdf';
 import { FONT_FAMILIES } from '../lib/constants';
 import { collectCodeLanguages, ensureLanguage, isLanguageReady } from '../lib/hljs-languages';
 import { isHexColor, resolveStrongColor } from '../lib/recolor';
@@ -53,6 +58,8 @@ export default function TypographyApp() {
   const [status, setStatus] = useState<CopyStatus>('idle');
   // 顶部样式区开合；顶栏「样式」按钮即开关
   const [styleOpen, setStyleOpen] = useState(false);
+  // PDF 导出选项对话框（入口在左上角菜单：文件 ▸ 导出 PDF…）
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const theme = ALL_THEMES.find((item) => item.id === themeId) ?? ALL_THEMES[0];
   // 没手动选字体时（'theme'），直接落到主题自己的归属上——下拉里显示的就是这一项
@@ -121,6 +128,41 @@ export default function TypographyApp() {
     statusTimer.current = setTimeout(() => setStatus('idle'), 2500);
   };
 
+  // 文章标题当文件名：取第一个标题行，没有再退到首段文字
+  const docTitle = articleTitle(markdown);
+
+  /** 导出前等图表落地：纸面上留「图表渲染中…」比缺一张图更糟 */
+  const awaitArticleRoot = async () => {
+    const root = articleRef.current;
+    if (!root) return null;
+    await waitForDiagrams(root);
+    return root;
+  };
+
+  const handleExportPdf = async (options: PdfExportOptions) => {
+    const root = await awaitArticleRoot();
+    if (!root) return;
+    await exportPdf({ root, title: docTitle, options });
+  };
+
+  const handleExportMarkdown = () => {
+    downloadTextFile(`${safeFileName(docTitle)}.md`, markdown, 'text/markdown');
+  };
+
+  const handleExportHtml = async () => {
+    const root = await awaitArticleRoot();
+    if (!root) return;
+    // 与 PDF 同一份版式，只是不带 @page（在屏幕上直接打开就是一张白纸卡片）
+    const doc = buildPrintDocument({ html: collectArticleHtml(root), title: docTitle, paged: false });
+    downloadTextFile(`${safeFileName(docTitle)}.html`, doc, 'text/html');
+  };
+
+  const handleImportMarkdown = async () => {
+    const text = await pickTextFile();
+    if (text === null) return;
+    editor.replaceAll(text, '已导入 Markdown');
+  };
+
   const label =
     status === 'ok'
       ? '已复制'
@@ -137,6 +179,18 @@ export default function TypographyApp() {
         icon={Newspaper}
         title="公众号排版风格"
         description="写 Markdown，一键复制带样式的正文，粘贴到公众号后台即可。"
+        menu={
+          <AppMenuBar
+            editor={editor}
+            settingsOpen={styleOpen}
+            onCopy={handleCopy}
+            onExportPdf={() => setPdfOpen(true)}
+            onExportMarkdown={handleExportMarkdown}
+            onExportHtml={handleExportHtml}
+            onImport={handleImportMarkdown}
+            onToggleSettings={() => setStyleOpen((open) => !open)}
+          />
+        }
         actions={
           <button
             type="button"
@@ -188,6 +242,15 @@ export default function TypographyApp() {
       />
 
       <StatusBar />
+
+      <PdfExportDialog
+        open={pdfOpen}
+        title={docTitle}
+        siteUrl={currentSiteUrl()}
+        article={articleRef}
+        onClose={() => setPdfOpen(false)}
+        onExport={handleExportPdf}
+      />
     </div>
   );
 }
