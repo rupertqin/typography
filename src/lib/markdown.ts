@@ -399,9 +399,16 @@ const marked = new Marked({
       const highlighted = highlightCode(text, language);
       return `<pre><span data-bar></span><code>${highlighted}</code></pre>`;
     },
-    image({ text }: { text: string }) {
-      return `<span data-img>${
-        text ? `📷 在这里插入图片：${escapeHtml(text)}` : '📷 在这里插入图片'
+    image({ href, text }: { href?: string; text?: string }) {
+      // 地址与说明留在属性里：预览时如果本机仓库有这个文件，会换成真图（见 useLocalImages）。
+      // 公众号不收外链图，所以默认仍然输出占位框。
+      const src = (href ?? '').trim();
+      const alt = text ?? '';
+      const attrs =
+        (src ? ` data-img-src="${escapeHtml(src)}"` : '') +
+        (alt ? ` data-img-alt="${escapeHtml(alt)}"` : '');
+      return `<span data-img${attrs}>${
+        alt ? `📷 在这里插入图片：${escapeHtml(alt)}` : '📷 在这里插入图片'
       }<br>粘贴到公众号后，用编辑器的「图片」按钮插入，再删掉这个框</span>`;
     },
     link({ href, tokens }: { href: string; tokens: any[] }) {

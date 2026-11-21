@@ -68,6 +68,11 @@ export function normalizeImageSlots(root: Element, doc: Document): void {
   root.querySelectorAll('[data-img]').forEach((slot) => {
     const box = doc.createElement('section');
     box.setAttribute('data-img', '');
+    // 图片地址与说明跟着搬到 section 上：预览时要拿它去本机仓库找图
+    const src = slot.getAttribute('data-img-src');
+    const alt = slot.getAttribute('data-img-alt');
+    if (src) box.setAttribute('data-img-src', src);
+    if (alt) box.setAttribute('data-img-alt', alt);
     box.innerHTML = slot.innerHTML;
     const parent = slot.parentElement;
     if (parent?.tagName === 'P' && parent.childNodes.length === 1) {

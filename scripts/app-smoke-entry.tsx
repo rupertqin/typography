@@ -22,6 +22,8 @@ for (const key of [
   'NodeFilter',
   'DOMParser',
   'XMLSerializer',
+  'File',
+  'FileReader',
   'Event',
   'MouseEvent',
   'KeyboardEvent',
@@ -1136,6 +1138,10 @@ try {
       '文件菜单里没有「导出 PDF」',
     );
     expect(
+      menuItems().some((btn) => (btn.textContent ?? '').includes('导入文件夹')),
+      '文件菜单里没有「导入文件夹」',
+    );
+    expect(
       menuItems().some((btn) => (btn.textContent ?? '').includes('导出 Markdown')),
       '文件菜单里没有「导出 Markdown」',
     );
@@ -1292,6 +1298,131 @@ try {
     writePdfOptions(base);
   }
 
+  // ---- 导入文件夹：md + 图片集 ----
+  {
+    const { normalizeAssetPath, stripDir, isExternalSrc, lookupAsset, setAssetBundle } = await import(
+      '../src/lib/local-assets'
+    );
+    const { scanFolder, buildAssetBundle } = await import('../src/lib/folder-import');
+    const { resolveLocalImages } = await import('../src/lib/useLocalImages');
+
+    expect(
+      normalizeAssetPath('./a//b/../c.png') === 'a/c.png',
+      `路径归一化不对：${normalizeAssetPath('./a//b/../c.png')}`,
+    );
+    expect(normalizeAssetPath('../../x.png') === 'x.png', '越界的 ../ 没吃掉');
+    expect(stripDir('post', 'post/images/1.png') === 'images/1.png', '基准目录没剥掉');
+    expect(
+      isExternalSrc('https://a/b.png') && isExternalSrc('data:image/png;base64,x') && !isExternalSrc('images/1.png'),
+      '外部地址判断不对',
+    );
+
+    const bundle = {
+      'images/1.png': 'data:image/png;base64,AAA',
+      'cover.png': 'data:image/png;base64,BBB',
+      'images/封面.png': 'data:image/png;base64,CCC',
+    };
+    await setAssetBundle(bundle);
+    expect(lookupAsset('images/1.png') === bundle['images/1.png'], '原路径没命中');
+    expect(lookupAsset('./images/1.png') === bundle['images/1.png'], './ 前缀没归一化');
+    expect(lookupAsset('1.png') === bundle['images/1.png'], '同名文件兜底失败');
+    expect(
+      lookupAsset(encodeURIComponent('images/封面.png')) === bundle['images/封面.png'],
+      '编码过的中文路径没解码',
+    );
+    expect(
+      lookupAsset('IMAGES/1.PNG') === bundle['images/1.png'],
+      '大小写不同的路径没兜住',
+    );
+    expect(lookupAsset('images/1.png?v=2') === bundle['images/1.png'], 'query 没去掉');
+    expect(lookupAsset('https://cdn/x.png') === null, '外部地址不该去本机仓库找');
+    expect(lookupAsset('missing.png') === null, '不存在的图片应该返回 null');
+
+    // 从正文里扒出图片引用，用来报「哪几张没对上」
+    {
+      const { imageRefsInMarkdown } = await import('../src/lib/folder-import');
+      const refs = imageRefsInMarkdown(
+        '![a](images/1.png)\n\n<img src="images/2.png">\n\n![](https://cdn/x.png?w=1)',
+      );
+      expect(
+        refs.length === 3 && refs.includes('images/1.png') && refs.includes('images/2.png'),
+        `没扒全图片引用：${refs.join(',')}`,
+      );
+    }
+
+    // 预览里的替换：只动能对上的相对路径
+    const article = win.document.createElement('div');
+    article.innerHTML =
+      '<section data-img><img src="images/1.png"></section><img src="https://cdn/x.png"><img src="missing.png">';
+    const changed = resolveLocalImages(article);
+    const imgs = Array.from(article.querySelectorAll('img')) as HTMLElement[];
+    expect(changed === 1, `替换张数不对：${changed}`);
+    expect(
+      (imgs[0]?.getAttribute('src') ?? '').startsWith('data:image/png'),
+      '相对路径没换成本机图片',
+    );
+    expect(imgs[1]?.getAttribute('src') === 'https://cdn/x.png', '外链被误改');
+    expect(imgs[2]?.getAttribute('src') === 'missing.png', '对不上的图片被误改');
+
+    // 文件夹扫描 + 图片打包
+    const mdFile = new win.File(['# 标题'], 'post.md', { type: 'text/markdown' });
+    Object.defineProperty(mdFile, 'webkitRelativePath', { value: 'post/post.md' });
+    const imgFile = new win.File([new Uint8Array([1, 2, 3])], '1.png', { type: 'image/png' });
+    Object.defineProperty(imgFile, 'webkitRelativePath', { value: 'post/images/1.png' });
+    const noteFile = new win.File(['x'], 'readme.txt', { type: 'text/plain' });
+    Object.defineProperty(noteFile, 'webkitRelativePath', { value: 'post/readme.txt' });
+
+    const scan = scanFolder([mdFile, imgFile, noteFile]);
+    expect(scan.folderName === 'post', `文件夹名不对：${scan.folderName}`);
+    expect(
+      scan.markdowns.length === 2 && scan.images.length === 1,
+      `分类不对：md=${scan.markdowns.length} img=${scan.images.length}`,
+    );
+    expect(scan.markdowns[0]?.dir === 'post', 'md 所在目录算错');
+
+    const built = await buildAssetBundle(scan.images, 'post');
+    expect(
+      built.used === 1 && Object.keys(built.bundle)[0] === 'images/1.png',
+      `图片没按相对路径打包：${JSON.stringify(Object.keys(built.bundle))}`,
+    );
+    expect(
+      (built.bundle['images/1.png'] ?? '').startsWith('data:image/png'),
+      '图片不是 data URL',
+    );
+
+    // Markdown 图片：渲染成占位框时带上地址，本机有图就换成真图
+    const { renderMarkdown } = await import('../src/lib/render');
+    const { THEMES } = await import('../src/lib/themes');
+    const rendered = renderMarkdown('![封面](images/1.png)', THEMES[0]);
+    expect(rendered.includes('data-img-src="images/1.png"'), '渲染时把图片地址丢了');
+    expect(rendered.includes('在这里插入图片'), '图片占位框没了');
+
+    const host = win.document.createElement('div');
+    host.innerHTML = rendered;
+    const swapped = resolveLocalImages(host);
+    expect(swapped === 1, `占位框没换成真图：${swapped}`);
+    expect(
+      Boolean(host.querySelector('[data-local-image] img[src^="data:image/png"]')),
+      '换出来的真图不对',
+    );
+
+    // PDF / HTML 导出：图留着，内部标记抹掉
+    const { collectArticleHtml } = await import('../src/lib/print-pdf');
+    const exportedArticle = collectArticleHtml(host);
+    expect(exportedArticle.includes('<img'), 'PDF 导出把本地图片丢了');
+    expect(!exportedArticle.includes('data-local-image'), 'PDF 导出带着内部标记');
+
+    // 复制到公众号：真图换回占位框（微信不收内联图）
+    const { restoreLocalImages } = await import('../src/lib/useLocalImages');
+    const copyClone = host.cloneNode(true) as HTMLElement;
+    restoreLocalImages(copyClone);
+    expect((copyClone.textContent ?? '').includes('在这里插入图片'), '复制内容里没还原占位框');
+    expect(!copyClone.querySelector('img'), '复制内容里还留着本地图片');
+    expect(!copyClone.querySelector('[data-local-image]'), '复制内容里还带着内部标记');
+
+    await setAssetBundle({});
+  }
+
   // 持久化：storage key 与原站一致，且字段齐全
   const raw = win.localStorage.getItem('typography');
   expect(Boolean(raw), '未写入 localStorage');
@@ -1335,5 +1466,5 @@ if (problems.length) {
 }
 
 console.log(
-  '[app-smoke] 通过：布局骨架（顶栏/分栏/状态栏/顶部样式区）、主题菜单、合一后的配色与排版设置、SVG 清洗与复制链路、左上角菜单栏与 PDF 导出（选项/预览/分页/文档构建）均正常',
+  '[app-smoke] 通过：布局骨架（顶栏/分栏/状态栏/顶部样式区）、主题菜单、合一后的配色与排版设置、SVG 清洗与复制链路、左上角菜单栏与 PDF 导出（选项/预览/分页/文档构建）、导入文件夹（路径归一化/图片仓库/预览替换）均正常',
 );

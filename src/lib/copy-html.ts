@@ -1,5 +1,6 @@
 import { MERMAID_ATTR, MERMAID_STATE_ATTR } from './mermaid';
 import { MATH_ATTR } from './math-render';
+import { restoreLocalImages } from './local-images';
 import { WECHAT_MAX_WIDTH, sanitizeMathSvgs, sanitizeMermaidSvgs } from './wechat-svg';
 
 const HIDDEN_HOST_STYLE = 'position:fixed;left:-99999px;top:0;visibility:hidden;pointer-events:none;z-index:-1';
@@ -124,6 +125,9 @@ export function buildCopyBundle(root: HTMLElement): CopyBundle {
         node.remove();
       }
     });
+
+    // 本机图片换回「在这儿插图片」占位框：微信不收内联图，粘过去只会是裂图
+    restoreLocalImages(clone);
 
     sanitizeMermaidSvgs(clone, WECHAT_MAX_WIDTH);
     sanitizeMathSvgs(clone);

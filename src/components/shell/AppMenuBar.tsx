@@ -6,6 +6,7 @@ import {
   Eye,
   FileCode,
   FileText,
+  FolderOpen,
   Heading2,
   Image as ImageIcon,
   Minus,
@@ -52,6 +53,8 @@ interface AppMenuBarProps {
   onExportMarkdown: () => void;
   onExportHtml: () => void;
   onImport: () => void;
+  /** 导入整个文件夹（md + 图片集） */
+  onImportFolder: () => void;
   onToggleSettings: () => void;
 }
 
@@ -69,6 +72,7 @@ export default function AppMenuBar({
   onExportMarkdown,
   onExportHtml,
   onImport,
+  onImportFolder,
   onToggleSettings,
 }: AppMenuBarProps) {
   const viewMode = useTypographyStore((state) => state.viewMode);
@@ -87,6 +91,12 @@ export default function AppMenuBar({
     { id: 'html', label: '导出 HTML', icon: FileCode, disabled: !editor.hasContent, run: onExportHtml },
     { type: 'separator' },
     { id: 'import', label: '导入 Markdown…', icon: Upload, run: onImport },
+    {
+      id: 'import-folder',
+      label: '导入文件夹（含图片）…',
+      icon: FolderOpen,
+      run: onImportFolder,
+    },
     { type: 'separator' },
     { id: 'sample', label: '恢复示例', icon: RotateCcw, run: editor.restoreSample },
     { id: 'clear', label: '清空', icon: Trash2, disabled: !editor.hasContent, run: editor.clear },

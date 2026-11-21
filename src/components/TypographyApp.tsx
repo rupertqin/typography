@@ -6,13 +6,17 @@ import PdfExportDialog from './pdf/PdfExportDialog';
 import PreviewPanel from './preview/PreviewPanel';
 import AppHeader from './shell/AppHeader';
 import AppMenuBar from './shell/AppMenuBar';
+import FolderImportDialog from './shell/FolderImportDialog';
 import SplitPane from './shell/SplitPane';
 import StatusBar from './shell/StatusBar';
 import StylePanel from './shell/StylePanel';
 import WorkbenchBar from './shell/WorkbenchBar';
 import { copyRichText } from '../lib/clipboard';
 import { buildCopyBundleWhenReady, waitForDiagrams } from '../lib/copy-html';
-import { articleTitle, downloadTextFile, pickTextFile, safeFileName } from '../lib/download';
+import { articleTitle, downloadTextFile, pickFolder, pickTextFile, safeFileName } from '../lib/download';
+import { buildAssetBundle, imageRefsInMarkdown, readMarkdownFile, scanFolder } from '../lib/folder-import';
+import type { FolderMarkdown, FolderScan } from '../lib/folder-import';
+import { isExternalSrc, lookupAsset, setAssetBundle } from '../lib/local-assets';
 import { buildPrintDocument, collectArticleHtml, currentSiteUrl, exportPdf } from '../lib/print-pdf';
 import type { PdfExportOptions } from '../lib/print-pdf';
 import { FONT_FAMILIES } from '../lib/constants';
@@ -60,6 +64,9 @@ export default function TypographyApp() {
   const [styleOpen, setStyleOpen] = useState(false);
   // PDF 导出选项对话框（入口在左上角菜单：文件 ▸ 导出 PDF…）
   const [pdfOpen, setPdfOpen] = useState(false);
+  // 导入文件夹：有多篇 md 时先让用户挑一篇
+  const [folderScan, setFolderScan] = useState<FolderScan | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const theme = ALL_THEMES.find((item) => item.id === themeId) ?? ALL_THEMES[0];
   // 没手动选字体时（'theme'），直接落到主题自己的归属上——下拉里显示的就是这一项
@@ -160,7 +167,85 @@ export default function TypographyApp() {
   const handleImportMarkdown = async () => {
     const text = await pickTextFile();
     if (text === null) return;
-    editor.replaceAll(text, '已导入 Markdown');
+
+    // 只选一个文件时拿不到同目录的图片：正文里的相对路径图片只能留在占位框，
+    // 这里把数量报出来，并指向「导入文件夹」——否则用户会以为是图片丢了。
+    const missing = imageRefsInMarkdown(text).filter(
+      (src) => !isExternalSrc(src) && !lookupAsset(src),
+    );
+    editor.replaceAll(
+      text,
+      missing.length > 0
+        ? `已导入 Markdown · ${missing.length} 张本地图片没读进来（要选文件夹）`
+        : '已导入 Markdown',
+    );
+    if (missing.length > 0) {
+      console.info('[导入 Markdown] 想连图片一起读，用「文件 ▸ 导入文件夹（含图片）」：', missing);
+    }
+  };
+
+  /**
+   * 导入「一个文件夹」：一篇 md + 一整个图片集。
+   *
+   * Markdown 原样进编辑器（相对路径保持可读），图片单独存进本机仓库，
+   * 预览/复制/导出时再由 useLocalImages 换成 data URL。
+   */
+  const importFromFolder = async (scan: FolderScan, entry: FolderMarkdown) => {
+    setImporting(true);
+    try {
+      if (scan.images.length > 0) editor.notify(`正在读取 ${scan.images.length} 张图片…`);
+      const [text, assets] = await Promise.all([
+        readMarkdownFile(entry.file),
+        buildAssetBundle(scan.images, entry.dir),
+      ]);
+      await setAssetBundle(assets.bundle);
+
+      // 正文引用的图片里，有几张没在文件夹里对上；跳过的又是为什么
+      const missing = imageRefsInMarkdown(text).filter(
+        (src) => !isExternalSrc(src) && !lookupAsset(src),
+      );
+      const unsupported = assets.skipped.filter((item) => item.reason === 'unsupported').length;
+      const tooLarge = assets.skipped.length - unsupported;
+
+      const parts = [entry.name];
+      parts.push(assets.used > 0 ? `${assets.used} 张图` : '没找到图片');
+      if (missing.length > 0) parts.push(`${missing.length} 张没对上`);
+      if (unsupported > 0) parts.push(`${unsupported} 张格式打不开`);
+      if (tooLarge > 0) parts.push(`${tooLarge} 张太大`);
+      const message = `已导入 ${parts.join(' · ')}`;
+
+      if (missing.length > 0 || assets.skipped.length > 0) {
+        // 提示栏放不下细节，具体是哪些图留在控制台，排查时能直接看到
+        console.info('[导入文件夹] 没对上的图片：', missing);
+        console.info('[导入文件夹] 跳过的图片：', assets.skipped);
+      }
+
+      // 草稿为空时 replaceAll 不会弹提示（没有可撤销的内容），这里补一句
+      const wasEmpty = !useTypographyStore.getState().markdown.trim();
+      editor.replaceAll(text, message);
+      if (wasEmpty) editor.notify(message);
+      setFolderScan(null);
+    } catch (error) {
+      editor.notify(`导入失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportFolder = async () => {
+    const files = await pickFolder();
+    if (files.length === 0) return;
+    const scan = scanFolder(files);
+    if (scan.markdowns.length === 0) {
+      editor.notify('这个文件夹里没有 Markdown 文件（.md / .markdown / .txt）');
+      return;
+    }
+    if (scan.markdowns.length === 1) {
+      const only = scan.markdowns[0];
+      await importFromFolder(scan, only);
+      return;
+    }
+    setFolderScan(scan);
   };
 
   const label =
@@ -188,6 +273,7 @@ export default function TypographyApp() {
             onExportMarkdown={handleExportMarkdown}
             onExportHtml={handleExportHtml}
             onImport={handleImportMarkdown}
+            onImportFolder={handleImportFolder}
             onToggleSettings={() => setStyleOpen((open) => !open)}
           />
         }
@@ -242,6 +328,15 @@ export default function TypographyApp() {
       />
 
       <StatusBar />
+
+      <FolderImportDialog
+        scan={folderScan}
+        busy={importing}
+        onPick={(entry) => {
+          if (folderScan) void importFromFolder(folderScan, entry);
+        }}
+        onClose={() => setFolderScan(null)}
+      />
 
       <PdfExportDialog
         open={pdfOpen}

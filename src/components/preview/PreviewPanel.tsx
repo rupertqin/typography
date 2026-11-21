@@ -8,6 +8,7 @@ import { useTypographyStore } from '../../lib/store';
 import type { Theme } from '../../lib/themes';
 import { useMermaidHydration } from '../../lib/useMermaidHydration';
 import { useMathHydration } from '../../lib/useMathHydration';
+import { useLocalImages } from '../../lib/useLocalImages';
 
 interface PreviewPanelProps {
   theme: Theme;
@@ -55,6 +56,8 @@ export default function PreviewPanel({
   });
   // 公式同理：占位落盘后编译成内联 SVG（MathJax 首次出现公式时才加载）
   useMathHydration(articleRef, { revision: html });
+  // 导入文件夹时带进来的图片：相对路径在这里换成本机仓库里的那一份
+  useLocalImages(articleRef, html);
 
   // 文章纸固定宽度（手机 375 / 桌面 680），居中 + 左右对称阴影，窗外露出的就是预览区底色
   const paperWidth = previewDevice === 'mobile' ? 'w-[375px]' : 'w-[680px]';

@@ -1,3 +1,4 @@
+import { stripLocalImageMarks } from './local-images';
 import { MERMAID_ATTR, MERMAID_STATE_ATTR } from './mermaid';
 
 /**
@@ -356,6 +357,9 @@ export function collectArticleHtml(root: HTMLElement): string {
     const state = node.getAttribute(MERMAID_STATE_ATTR);
     if (state !== 'ready') node.remove();
   });
+
+  // 本机图片的调试标记不带到纸面上（图本身要留着，PDF 里是要看的）
+  stripLocalImageMarks(clone);
 
   return clone.outerHTML;
 }

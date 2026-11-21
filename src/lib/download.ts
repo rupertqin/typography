@@ -87,3 +87,32 @@ export function pickTextFile(accept = '.md,.markdown,.txt,text/markdown,text/pla
     input.click();
   });
 }
+
+/**
+ * 让用户挑一个文件夹（md + 图片集）；取消返回空数组。
+ * `webkitdirectory` 在不支持的浏览器（如部分手机浏览器）上会退化成本选单个文件，
+ * 那时拿到的就是一个只有一项的数组，下游按「只有一个文件」处理即可。
+ */
+export function pickFolder(): Promise<File[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.webkitdirectory = true;
+    input.style.cssText = 'position:fixed;left:-9999px;top:0;';
+    let settled = false;
+
+    const finish = (files: File[]) => {
+      if (settled) return;
+      settled = true;
+      input.remove();
+      resolve(files);
+    };
+
+    input.addEventListener('change', () => finish(input.files ? Array.from(input.files) : []));
+    input.addEventListener('cancel', () => finish([]));
+
+    document.body.appendChild(input);
+    input.click();
+  });
+}

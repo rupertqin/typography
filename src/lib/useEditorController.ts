@@ -33,6 +33,8 @@ export interface EditorController {
   clear: () => void;
   /** 整篇替换（导入 Markdown 用）：进撤销栈，提示里带「撤销」 */
   replaceAll: (next: string, label: string) => void;
+  /** 纯提示：不碰正文（导入失败、文件夹里没有 md 这类） */
+  notify: (text: string) => void;
   canUndo: boolean;
   canRedo: boolean;
   hasContent: boolean;
@@ -245,6 +247,7 @@ export function useEditorController(): EditorController {
     restoreSample: () => applyChange(SAMPLE_MARKDOWN, '已换成示例文章'),
     clear: () => applyChange('', '已清空'),
     replaceAll: (next, label) => applyChange(next, label),
+    notify: (text) => showNotice(text),
     canUndo: history.canUndo,
     canRedo: history.canRedo,
     hasContent: Boolean(markdown.trim()),
